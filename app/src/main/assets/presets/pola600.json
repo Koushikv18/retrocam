@@ -1,0 +1,35 @@
+{
+  "id": "pola600",
+  "name": "Polaroid 600",
+  "subtitle": "Instant Film White Frame",
+  "aspectRatio": "1:1",
+  "frame": "polaroid",
+  "lut": "pola600",
+  "exposure": 0.08,
+  "contrast": 0.95,
+  "saturation": 0.92,
+  "temperature": 0.04,
+  "tint": 0.02,
+  "fade": 0.14,
+  "grain": 0.1,
+  "vignette": 0.42,
+  "halation": 0.28,
+  "aberration": 0.0005,
+  "bloom": 0.22,
+  "leak": 0.25,
+  "scanlines": 0.0,
+  "dust": 0.07,
+  "tone": [
+    0.95,
+    0.9,
+    0.85
+  ],
+  "toneAmt": 0.1,
+  "dateStamp": {
+    "enabled": false,
+    "color": "#FF9A2E",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

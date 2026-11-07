@@ -1,0 +1,35 @@
+{
+  "id": "half_frame",
+  "name": "Half Frame 72",
+  "subtitle": "Vertical 35mm Diptych",
+  "aspectRatio": "3:4",
+  "frame": "film_strip",
+  "lut": "half_frame",
+  "exposure": 0.05,
+  "contrast": 1.15,
+  "saturation": 1.08,
+  "temperature": 0.05,
+  "tint": -0.01,
+  "fade": 0.06,
+  "grain": 0.16,
+  "vignette": 0.45,
+  "halation": 0.35,
+  "aberration": 0.0015,
+  "bloom": 0.16,
+  "leak": 0.14,
+  "scanlines": 0.0,
+  "dust": 0.08,
+  "tone": [
+    1.0,
+    0.92,
+    0.8
+  ],
+  "toneAmt": 0.12,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FFA640",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

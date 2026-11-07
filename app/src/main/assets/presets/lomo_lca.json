@@ -1,0 +1,35 @@
+{
+  "id": "lomo_lca",
+  "name": "Lomo LC-A",
+  "subtitle": "Saturated Toy Camera",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "lomo",
+  "exposure": 0.08,
+  "contrast": 1.3,
+  "saturation": 1.45,
+  "temperature": 0.06,
+  "tint": 0.03,
+  "fade": 0.03,
+  "grain": 0.14,
+  "vignette": 0.75,
+  "halation": 0.4,
+  "aberration": 0.004,
+  "bloom": 0.25,
+  "leak": 0.22,
+  "scanlines": 0.0,
+  "dust": 0.06,
+  "tone": [
+    1.05,
+    0.95,
+    0.75
+  ],
+  "toneAmt": 0.12,
+  "dateStamp": {
+    "enabled": false,
+    "color": "#FFA640",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

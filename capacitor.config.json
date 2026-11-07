@@ -1,7 +1,0 @@
-{
-  "appId": "com.koushik.retrocam",
-  "appName": "RetroCam",
-  "webDir": "www",
-  "backgroundColor": "#000000",
-  "android": { "allowMixedContent": false }
-}

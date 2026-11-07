@@ -1,4 +1,15 @@
+# Build and cache
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+*.apk
+*.aab
+
+# Node & legacy
 node_modules/
 android/
-*.apk
 .DS_Store
+Thumbs.db

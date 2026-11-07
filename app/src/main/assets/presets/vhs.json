@@ -1,0 +1,35 @@
+{
+  "id": "vhs",
+  "name": "VHS Cam",
+  "subtitle": "1992 Home Video",
+  "aspectRatio": "4:3",
+  "frame": "none",
+  "lut": "vhs",
+  "exposure": 0.02,
+  "contrast": 1.1,
+  "saturation": 1.25,
+  "temperature": 0.0,
+  "tint": 0.0,
+  "fade": 0.08,
+  "grain": 0.12,
+  "vignette": 0.35,
+  "halation": 0.2,
+  "aberration": 0.004,
+  "bloom": 0.15,
+  "leak": 0.0,
+  "scanlines": 0.35,
+  "dust": 0.02,
+  "tone": [
+    0.9,
+    0.95,
+    1.1
+  ],
+  "toneAmt": 0.08,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#F4F4F4",
+    "font": "vhs",
+    "format": "M D 'YY HH:mm",
+    "position": "bottom_left"
+  }
+}

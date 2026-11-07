@@ -1,0 +1,35 @@
+{
+  "id": "portra400",
+  "name": "Portra 400",
+  "subtitle": "Fine Grain Portrait",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "portra",
+  "exposure": 0.05,
+  "contrast": 1.04,
+  "saturation": 1.05,
+  "temperature": 0.04,
+  "tint": -0.02,
+  "fade": 0.03,
+  "grain": 0.08,
+  "vignette": 0.25,
+  "halation": 0.35,
+  "aberration": 0.0006,
+  "bloom": 0.12,
+  "leak": 0.08,
+  "scanlines": 0.0,
+  "dust": 0.03,
+  "tone": [
+    1.0,
+    0.95,
+    0.88
+  ],
+  "toneAmt": 0.08,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF9A2E",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

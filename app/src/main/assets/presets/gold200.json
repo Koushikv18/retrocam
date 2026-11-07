@@ -1,0 +1,35 @@
+{
+  "id": "gold200",
+  "name": "Kodak Gold",
+  "subtitle": "Warm Summer 200",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "gold",
+  "exposure": 0.08,
+  "contrast": 1.08,
+  "saturation": 1.1,
+  "temperature": 0.12,
+  "tint": 0.02,
+  "fade": 0.05,
+  "grain": 0.11,
+  "vignette": 0.4,
+  "halation": 0.45,
+  "aberration": 0.001,
+  "bloom": 0.15,
+  "leak": 0.25,
+  "scanlines": 0.0,
+  "dust": 0.05,
+  "tone": [
+    1.0,
+    0.85,
+    0.6
+  ],
+  "toneAmt": 0.12,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF9A2E",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "aerochrome",
+  "name": "Aerochrome",
+  "subtitle": "Infrared False Color",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "aerochrome",
+  "exposure": 0.06,
+  "contrast": 1.2,
+  "saturation": 1.45,
+  "temperature": 0.25,
+  "tint": 0.3,
+  "fade": 0.02,
+  "grain": 0.1,
+  "vignette": 0.42,
+  "halation": 0.6,
+  "aberration": 0.003,
+  "bloom": 0.22,
+  "leak": 0.1,
+  "scanlines": 0.0,
+  "dust": 0.04,
+  "tone": [
+    1.3,
+    0.7,
+    0.9
+  ],
+  "toneAmt": 0.25,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF4499",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "cinestill800",
+  "name": "Cine 800T",
+  "subtitle": "Tungsten Cinema Film",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "cinestill",
+  "exposure": 0.04,
+  "contrast": 1.22,
+  "saturation": 1.18,
+  "temperature": -0.08,
+  "tint": 0.04,
+  "fade": 0.04,
+  "grain": 0.14,
+  "vignette": 0.4,
+  "halation": 0.75,
+  "aberration": 0.0022,
+  "bloom": 0.28,
+  "leak": 0.15,
+  "scanlines": 0.0,
+  "dust": 0.04,
+  "tone": [
+    0.7,
+    0.95,
+    1.15
+  ],
+  "toneAmt": 0.16,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF3322",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

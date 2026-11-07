@@ -1,0 +1,35 @@
+{
+  "id": "gr_digital",
+  "name": "GR Digital",
+  "subtitle": "Street Snapshot Contrast",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "gr_digital",
+  "exposure": 0.0,
+  "contrast": 1.35,
+  "saturation": 0.85,
+  "temperature": -0.02,
+  "tint": 0.0,
+  "fade": 0.02,
+  "grain": 0.12,
+  "vignette": 0.35,
+  "halation": 0.15,
+  "aberration": 0.0005,
+  "bloom": 0.08,
+  "leak": 0.0,
+  "scanlines": 0.0,
+  "dust": 0.02,
+  "tone": [
+    0.95,
+    0.95,
+    0.95
+  ],
+  "toneAmt": 0.04,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF7A1A",
+    "font": "digital_7seg",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "fuji_ccd",
+  "name": "Fuji CCD",
+  "subtitle": "Super CCD Digicam",
+  "aspectRatio": "4:3",
+  "frame": "none",
+  "lut": "fuji_ccd",
+  "exposure": 0.12,
+  "contrast": 1.15,
+  "saturation": 1.1,
+  "temperature": -0.05,
+  "tint": -0.05,
+  "fade": 0.04,
+  "grain": 0.07,
+  "vignette": 0.28,
+  "halation": 0.22,
+  "aberration": 0.0015,
+  "bloom": 0.3,
+  "leak": 0.0,
+  "scanlines": 0.0,
+  "dust": 0.01,
+  "tone": [
+    0.75,
+    1.0,
+    0.9
+  ],
+  "toneAmt": 0.1,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF8A1F",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

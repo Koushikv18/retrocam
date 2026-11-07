@@ -1,0 +1,35 @@
+{
+  "id": "tri_x",
+  "name": "Tri-X 400",
+  "subtitle": "Classic Street B&W",
+  "aspectRatio": "3:2",
+  "frame": "film_strip",
+  "lut": "tri_x",
+  "exposure": 0.02,
+  "contrast": 1.28,
+  "saturation": 0.0,
+  "temperature": 0.0,
+  "tint": 0.0,
+  "fade": 0.03,
+  "grain": 0.18,
+  "vignette": 0.48,
+  "halation": 0.25,
+  "aberration": 0.0,
+  "bloom": 0.08,
+  "leak": 0.0,
+  "scanlines": 0.0,
+  "dust": 0.1,
+  "tone": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "toneAmt": 0.0,
+  "dateStamp": {
+    "enabled": false,
+    "color": "#FFFFFF",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

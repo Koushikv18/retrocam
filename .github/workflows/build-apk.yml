@@ -1,0 +1,52 @@
+name: Build RetroCam APK
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [main, native]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x gradlew
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Assemble Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: retrocam-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK to 'latest' Release
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk RetroCam.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest RetroCam.apk \
+            --title "RetroCam (latest build)" \
+            --notes "Built automatically from commit ${GITHUB_SHA::7}. Install RetroCam.apk on Android (allow unknown apps)."
+

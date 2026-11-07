@@ -1,0 +1,35 @@
+{
+  "id": "inst_c",
+  "name": "Inst-C",
+  "subtitle": "Square Instant Color",
+  "aspectRatio": "1:1",
+  "frame": "polaroid",
+  "lut": "instant",
+  "exposure": 0.09,
+  "contrast": 0.98,
+  "saturation": 1.0,
+  "temperature": 0.05,
+  "tint": 0.03,
+  "fade": 0.1,
+  "grain": 0.09,
+  "vignette": 0.4,
+  "halation": 0.3,
+  "aberration": 0.0,
+  "bloom": 0.25,
+  "leak": 0.3,
+  "scanlines": 0.0,
+  "dust": 0.06,
+  "tone": [
+    1.0,
+    0.9,
+    0.85
+  ],
+  "toneAmt": 0.1,
+  "dateStamp": {
+    "enabled": false,
+    "color": "#FF9A2E",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

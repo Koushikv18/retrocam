@@ -1,0 +1,35 @@
+{
+  "id": "cpm35",
+  "name": "CPM35",
+  "subtitle": "35mm Color Negative",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "cpm35",
+  "exposure": 0.06,
+  "contrast": 1.18,
+  "saturation": 1.12,
+  "temperature": 0.07,
+  "tint": -0.03,
+  "fade": 0.05,
+  "grain": 0.14,
+  "vignette": 0.45,
+  "halation": 0.5,
+  "aberration": 0.0018,
+  "bloom": 0.14,
+  "leak": 0.18,
+  "scanlines": 0.0,
+  "dust": 0.05,
+  "tone": [
+    0.75,
+    1.0,
+    0.85
+  ],
+  "toneAmt": 0.14,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF8A1F",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}

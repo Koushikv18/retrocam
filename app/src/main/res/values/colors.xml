@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="retro_black">#0B0B0B</color>
+    <color name="retro_surface">#161616</color>
+    <color name="retro_surface_variant">#222222</color>
+    <color name="retro_amber">#FF9A2E</color>
+    <color name="retro_white">#F3EFE6</color>
+    <color name="ic_launcher_background">#0B0B0B</color>
+</resources>
+

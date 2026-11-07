@@ -1,0 +1,35 @@
+{
+  "id": "expired_film",
+  "name": "Expired 1999",
+  "subtitle": "Shifted Emulsion & Leaks",
+  "aspectRatio": "3:2",
+  "frame": "none",
+  "lut": "expired",
+  "exposure": 0.07,
+  "contrast": 0.92,
+  "saturation": 0.88,
+  "temperature": -0.05,
+  "tint": 0.15,
+  "fade": 0.16,
+  "grain": 0.19,
+  "vignette": 0.52,
+  "halation": 0.55,
+  "aberration": 0.0028,
+  "bloom": 0.26,
+  "leak": 0.4,
+  "scanlines": 0.0,
+  "dust": 0.12,
+  "tone": [
+    1.15,
+    0.8,
+    1.05
+  ],
+  "toneAmt": 0.2,
+  "dateStamp": {
+    "enabled": true,
+    "color": "#FF8A1F",
+    "font": "quartz",
+    "format": "'YY  M  D",
+    "position": "bottom_right"
+  }
+}
