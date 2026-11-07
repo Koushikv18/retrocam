@@ -1,5 +1,7 @@
 // Each preset drives the WebGL shader. Colors are RGB 0..1.
 const PRESETS = [
+  { id:'cpm35',   name:'CPM35',        exposure:0.06, contrast:1.18, sat:1.12, temp:0.07, tint:-0.03, fade:0.05, grain:0.14, vignette:0.45, halation:0.50, aberration:0.0018, bloom:0.14, leak:0.18, scan:0.0, tone:[0.75,1.0,0.85], toneAmt:0.14, stamp:true,  stampColor:'#ff8a1f', ratio:3/2 },
+  { id:'classic', name:'Classic Cam',  exposure:0.07, contrast:1.02, sat:0.92, temp:0.10, tint:0.02,  fade:0.10, grain:0.09, vignette:0.38, halation:0.30, aberration:0.0008, bloom:0.22, leak:0.12, scan:0.0, tone:[1.0,0.88,0.72], toneAmt:0.12, stamp:true,  stampColor:'#ffa640', ratio:4/3 },
   { id:'ccd',   name:'Classic CCD',  exposure:0.05, contrast:1.12, sat:1.15, temp:0.04, tint:0.0,  fade:0.03, grain:0.06, vignette:0.35, halation:0.35, aberration:0.0015, bloom:0.12, leak:0.0, scan:0.0, tone:[1.0,0.92,0.82], toneAmt:0.06, stamp:true,  stampColor:'#ff9a2e', ratio:4/3 },
   { id:'y2k',   name:'Y2K Digicam',  exposure:0.12, contrast:1.20, sat:1.30, temp:-0.03, tint:0.02, fade:0.0,  grain:0.04, vignette:0.25, halation:0.2,  aberration:0.002,  bloom:0.2,  leak:0.0, scan:0.0, tone:[0.9,1.0,1.1],  toneAmt:0.05, stamp:true,  stampColor:'#ff7a1a', ratio:4/3 },
   { id:'gold',  name:'Kodak Gold',   exposure:0.08, contrast:1.08, sat:1.10, temp:0.12, tint:0.02, fade:0.05, grain:0.11, vignette:0.40, halation:0.45, aberration:0.001,  bloom:0.15, leak:0.25, scan:0.0, tone:[1.0,0.85,0.6], toneAmt:0.12, stamp:false, stampColor:'#ff9a2e', ratio:3/2 },
