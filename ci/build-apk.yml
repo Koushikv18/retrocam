@@ -14,12 +14,22 @@ jobs:
         with: { distribution: temurin, java-version: 17 }
       - run: npm install
       - run: npx cap add android
-      - name: Add camera + media permissions
+
+      - name: Native plugin + manifest
         run: |
+          PKG=android/app/src/main/java/com/koushik/retrocam
+          cp native/GallerySaverPlugin.java native/MainActivity.java $PKG/
           M=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application#' $M
+          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application#' $M
+          sed -i 's#android:name=".MainActivity"#android:name=".MainActivity"\n            android:screenOrientation="portrait"#' $M
+          cat $M
+
+      - name: App icon + splash
+        continue-on-error: true
+        run: npx --yes @capacitor/assets generate --android --iconBackgroundColor '#0b0b0b' --splashBackgroundColor '#000000'
+
       - run: npx cap sync android
-      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: retrocam-debug-apk
