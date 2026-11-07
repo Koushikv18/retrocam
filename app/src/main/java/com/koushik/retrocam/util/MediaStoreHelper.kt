@@ -131,8 +131,8 @@ object MediaStoreHelper {
 
                     val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
 
-                    // Include RetroCam photos or all photos
-                    if (name.startsWith("RetroCam") || count < 50) {
+                    // Include only RetroCam photos
+                    if (name.startsWith("RetroCam")) {
                         mediaList.add(
                             MediaItem(
                                 id = id,
@@ -216,6 +216,7 @@ object MediaStoreHelper {
             Log.e(TAG, "Error querying videos: ${e.message}")
         }
 
+        Log.i(TAG, "queryGalleryMedia returning ${mediaList.size} items")
         mediaList.sortedByDescending { it.dateAdded }
     }
 

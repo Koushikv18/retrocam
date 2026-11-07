@@ -247,6 +247,7 @@ fun CameraScreen(
             },
             update = { surface ->
                 surface.currentPreset = selectedPreset
+                cameraManager?.setPreset(selectedPreset)
                 surface.currentZoom = zoomRatio
                 surface.isMirror = settings.mirrorFrontCamera && (cameraManager?.isFrontCamera == true)
             },
@@ -430,6 +431,7 @@ fun CameraScreen(
                 onSelectPreset = { preset ->
                     selectedPreset = preset
                     effectSurface?.currentPreset = preset
+                    cameraManager?.setPreset(preset)
                     haptics.vibrateDialTick(settings.hapticFeedback)
                     onUpdateSettings(settings.copy(selectedPresetId = preset.id))
                 },

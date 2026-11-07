@@ -46,7 +46,9 @@ fun GalleryScreen(
 
     fun refreshMedia() {
         coroutineScope.launch {
-            mediaItems = MediaStoreHelper.queryGalleryMedia(context)
+            val items = MediaStoreHelper.queryGalleryMedia(context)
+            android.util.Log.i("GalleryScreen", "Loaded ${items.size} media items")
+            mediaItems = items
         }
     }
 
@@ -162,6 +164,47 @@ fun GalleryScreen(
                     contentDescription = item.displayName,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
+                )
+
+                if (item.isVideo) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(72.dp)
+                            .background(RetroAmber.copy(alpha = 0.9f), CircleShape)
+                            .clickable {
+                                val playIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                    setDataAndType(item.uri, "video/*")
+                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                try {
+                                    context.startActivity(android.content.Intent.createChooser(playIntent, "Play Video"))
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "No video player found", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play Video",
+                            tint = RetroBlack,
+                            modifier = Modifier.size(44.dp)
+                        )
+                    }
+                }
+
+                // File name footer
+                Text(
+                    text = item.displayName,
+                    color = RetroGray,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 28.dp)
+                        .background(RetroBlack.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
 
                 // Top bar in viewer

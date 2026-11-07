@@ -90,6 +90,10 @@ class EglCore(sharedContext: EGLContext = EGL14.EGL_NO_CONTEXT) {
         return EGL14.eglSwapBuffers(eglDisplay, eglSurface)
     }
 
+    fun setPresentationTime(eglSurface: EGLSurface, nsecs: Long) {
+        EGLExt.eglPresentationTimeANDROID(eglDisplay, eglSurface, nsecs)
+    }
+
     fun releaseSurface(eglSurface: EGLSurface) {
         if (eglSurface != EGL14.EGL_NO_SURFACE) {
             EGL14.eglDestroySurface(eglDisplay, eglSurface)

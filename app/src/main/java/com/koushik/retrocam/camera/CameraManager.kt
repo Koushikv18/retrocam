@@ -11,6 +11,10 @@ import androidx.camera.video.*
 import androidx.camera.video.VideoCapture
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.koushik.retrocam.data.model.CameraPreset
+import com.koushik.retrocam.gl.LUTManager
+import com.koushik.retrocam.gl.RetroVideoEffect
+import com.koushik.retrocam.gl.RetroVideoProcessor
 import com.koushik.retrocam.util.MediaStoreHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -36,6 +40,10 @@ class CameraManager(
     private var activeRecording: Recording? = null
 
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+
+    private val lutManager = LUTManager()
+    val videoProcessor = RetroVideoProcessor(lutManager)
+    private val videoEffect = RetroVideoEffect(videoProcessor)
 
     var isFrontCamera: Boolean = false
         private set
@@ -125,17 +133,34 @@ class CameraManager(
         videoCapture = VideoCapture.withOutput(recorder)
 
         try {
+            val useCaseGroup = UseCaseGroup.Builder()
+                .addUseCase(preview)
+                .addUseCase(imageCapture!!)
+                .addUseCase(videoCapture!!)
+                .addEffect(videoEffect)
+                .build()
+
             camera = provider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
-                preview,
-                imageCapture,
-                videoCapture
+                useCaseGroup
             )
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Use case binding failed", e)
-            return false
+            Log.w(TAG, "Binding with video effect failed, falling back to direct use cases: ${e.message}")
+            try {
+                camera = provider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    preview,
+                    imageCapture,
+                    videoCapture
+                )
+                return true
+            } catch (e2: Exception) {
+                Log.e(TAG, "Use case binding failed", e2)
+                return false
+            }
         }
     }
 
@@ -231,9 +256,15 @@ class CameraManager(
         activeRecording = null
     }
 
+    fun setPreset(preset: CameraPreset) {
+        videoProcessor.currentPreset = preset
+    }
+
     fun onDestroy() {
         cameraExecutor.shutdown()
         cameraProvider?.unbindAll()
+        videoProcessor.release()
+        lutManager.release()
     }
 }
 

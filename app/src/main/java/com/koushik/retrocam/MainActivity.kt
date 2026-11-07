@@ -166,7 +166,11 @@ class MainActivity : ComponentActivity() {
         hasCameraPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         hasAudioPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
-        if (!hasCameraPermission) {
+        val hasMediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+        } else true
+
+        if (!hasCameraPermission || !hasAudioPermission || !hasMediaPermission) {
             permissionLauncher.launch(permissions.toTypedArray())
         }
     }

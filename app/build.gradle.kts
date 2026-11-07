@@ -97,6 +97,7 @@ dependencies {
 
     // Image loading for Gallery and Edit mode
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-video:2.7.0")
 
     // EXIF interface for orientation handling
     implementation("androidx.exifinterface:exifinterface:1.3.7")
