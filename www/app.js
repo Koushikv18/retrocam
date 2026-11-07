@@ -140,9 +140,15 @@
         ctx.shadowColor = cur.stampColor; ctx.shadowBlur = outH * 0.006; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
         ctx.fillText(stampText(), outW - outH * 0.035, outH - outH * 0.035);
       }
-      const blob = await canvasToBlob(out, 0.93);
-      const th = document.createElement('canvas'); th.width = 360; th.height = Math.round(360 * outH / outW);
-      th.getContext('2d').drawImage(out, 0, 0, th.width, th.height);
+      let fin = out;
+      if (cur.frame === 'polaroid') {
+        const b = Math.round(outW * 0.06), bb = Math.round(outW * 0.22);
+        fin = document.createElement('canvas'); fin.width = outW + b * 2; fin.height = outH + b + bb;
+        const fx = fin.getContext('2d'); fx.fillStyle = '#f3efe6'; fx.fillRect(0, 0, fin.width, fin.height); fx.drawImage(out, b, b);
+      }
+      const blob = await canvasToBlob(fin, 0.93);
+      const th = document.createElement('canvas'); th.width = 360; th.height = Math.round(360 * fin.height / fin.width);
+      th.getContext('2d').drawImage(fin, 0, 0, th.width, th.height);
       const thumbB64 = (th.toDataURL('image/jpeg', 0.8)).split(',')[1];
       const b64 = await blobToB64(blob);
       const id = String(Date.now());

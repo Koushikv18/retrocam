@@ -1,4 +1,6 @@
 name: Build APK
+permissions:
+  contents: write
 on:
   push:
     branches: [main]
@@ -34,3 +36,11 @@ jobs:
         with:
           name: retrocam-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK to the "latest" release (fixed download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk RetroCam.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest RetroCam.apk --title "RetroCam (latest build)" --notes "Built from commit ${GITHUB_SHA::7}. Install RetroCam.apk on Android (allow unknown apps)."
+
