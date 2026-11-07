@@ -1,0 +1,10 @@
+// Each preset drives the WebGL shader. Colors are RGB 0..1.
+const PRESETS = [
+  { id:'ccd',   name:'Classic CCD',  exposure:0.05, contrast:1.12, sat:1.15, temp:0.04, tint:0.0,  fade:0.03, grain:0.06, vignette:0.35, halation:0.35, aberration:0.0015, bloom:0.12, leak:0.0, scan:0.0, tone:[1.0,0.92,0.82], toneAmt:0.06, stamp:true,  stampColor:'#ff9a2e', ratio:4/3 },
+  { id:'y2k',   name:'Y2K Digicam',  exposure:0.12, contrast:1.20, sat:1.30, temp:-0.03, tint:0.02, fade:0.0,  grain:0.04, vignette:0.25, halation:0.2,  aberration:0.002,  bloom:0.2,  leak:0.0, scan:0.0, tone:[0.9,1.0,1.1],  toneAmt:0.05, stamp:true,  stampColor:'#ff7a1a', ratio:4/3 },
+  { id:'gold',  name:'Kodak Gold',   exposure:0.08, contrast:1.08, sat:1.10, temp:0.12, tint:0.02, fade:0.05, grain:0.11, vignette:0.40, halation:0.45, aberration:0.001,  bloom:0.15, leak:0.25, scan:0.0, tone:[1.0,0.85,0.6], toneAmt:0.12, stamp:false, stampColor:'#ff9a2e', ratio:3/2 },
+  { id:'fuji',  name:'Fuji 400',     exposure:0.04, contrast:1.05, sat:1.05, temp:-0.06, tint:-0.04,fade:0.06, grain:0.10, vignette:0.30, halation:0.25, aberration:0.001,  bloom:0.10, leak:0.0, scan:0.0, tone:[0.8,1.0,0.9],  toneAmt:0.10, stamp:false, stampColor:'#ff9a2e', ratio:3/2 },
+  { id:'pola',  name:'Instant',      exposure:0.10, contrast:0.95, sat:0.95, temp:0.06, tint:0.03, fade:0.12, grain:0.08, vignette:0.45, halation:0.30, aberration:0.0,    bloom:0.25, leak:0.35, scan:0.0, tone:[1.0,0.9,0.85], toneAmt:0.10, stamp:false, stampColor:'#ff9a2e', ratio:1 },
+  { id:'vhs',   name:'VHS Cam',      exposure:0.02, contrast:1.10, sat:1.25, temp:0.0,  tint:0.0,  fade:0.08, grain:0.12, vignette:0.35, halation:0.2,  aberration:0.004,  bloom:0.15, leak:0.0, scan:0.35,tone:[0.9,0.95,1.1], toneAmt:0.08, stamp:true,  stampColor:'#f4f4f4', ratio:4/3 },
+  { id:'noir',  name:'Noir 35',      exposure:0.0,  contrast:1.35, sat:0.0,  temp:0.0,  tint:0.0,  fade:0.04, grain:0.16, vignette:0.55, halation:0.30, aberration:0.0,    bloom:0.10, leak:0.0, scan:0.0, tone:[1,1,1],        toneAmt:0.0,  stamp:false, stampColor:'#ffffff', ratio:3/2 },
+];

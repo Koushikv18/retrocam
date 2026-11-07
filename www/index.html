@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>RetroCam</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="btnDate" class="chip">DATE</button>
+    <div id="presetName">Classic CCD</div>
+    <button id="btnFlip" class="chip">FLIP</button>
+  </header>
+  <div id="viewfinder"><canvas id="gl"></canvas><div id="toast"></div></div>
+  <div id="presets"></div>
+  <footer>
+    <button id="thumb"></button>
+    <button id="shutter" aria-label="Capture"></button>
+    <button id="btnTorch" class="chip">FLASH</button>
+  </footer>
+</div>
+<div id="perm" hidden><p id="permMsg"></p><button id="permBtn">Enable camera</button></div>
+<script src="presets.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

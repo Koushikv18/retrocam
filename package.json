@@ -1,0 +1,16 @@
+{
+  "name": "retrocam",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Retro camera app (Dazz-style) built with Capacitor + WebGL",
+  "scripts": {
+    "sync": "cap sync android",
+    "serve": "npx http-server www -p 8080"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor-community/media": "^6.0.0"
+  }
+}
