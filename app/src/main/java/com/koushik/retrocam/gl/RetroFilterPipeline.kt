@@ -254,12 +254,14 @@ class RetroFilterPipeline {
         mirror: Boolean = false,
         texMatrix: FloatArray? = null,
         doubleExpTextureId: Int? = null,
-        doubleExpIntensity: Float = 0.5f
+        doubleExpIntensity: Float = 0.5f,
+        viewportX: Int = 0,
+        viewportY: Int = 0
     ) {
         val program = if (isOesTexture) oesProgram else standardProgram
         GLES30.glUseProgram(program)
 
-        GLES30.glViewport(0, 0, width, height)
+        GLES30.glViewport(viewportX, viewportY, width, height)
 
         GLES30.glEnableVertexAttribArray(0)
         GLES30.glVertexAttribPointer(0, 2, GLES30.GL_FLOAT, false, 0, vertexBuffer)

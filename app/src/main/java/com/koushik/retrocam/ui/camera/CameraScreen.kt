@@ -44,6 +44,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.koushik.retrocam.camera.CameraEffectSurface
 import com.koushik.retrocam.camera.CameraManager
+import com.koushik.retrocam.camera.PreviewGeometry
 import com.koushik.retrocam.data.model.*
 import com.koushik.retrocam.gl.LUTManager
 import com.koushik.retrocam.gl.StillImageProcessor
@@ -103,6 +104,14 @@ fun CameraScreen(
     var cameraEpoch by remember { mutableIntStateOf(0) }
     var dismissedTipId by remember { mutableStateOf<String?>(null) }
     var shownTip by remember { mutableStateOf<CoachTip?>(null) }
+
+    // Release the camera, its GL surface and the video processor when leaving this screen
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraManager?.onDestroy()
+            effectSurface?.onDestroy()
+        }
+    }
 
     // Accelerometer for spirit level
     var deviceRoll by remember { mutableFloatStateOf(0f) }
@@ -290,8 +299,12 @@ fun CameraScreen(
 
                     val cm = CameraManager(ctx, lifecycleOwner)
                     cameraManager = cm
+                    onGlContextRecreated = { cm.rebind(getSurfaceProvider()) }
                     coroutineScope.launch {
-                        cm.initCamera(getSurfaceProvider())
+                        val started = cm.initCamera(getSurfaceProvider())
+                        if (!started) {
+                            Toast.makeText(ctx, "Camera could not start. Close other camera apps and reopen RetroCam.", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             },
@@ -311,8 +324,16 @@ fun CameraScreen(
                 }
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
+                        val surf = effectSurface ?: return@detectTapGestures
+                        // Only taps on the actual camera frame count, mapped through the same
+                        // rotation/mirroring the preview uses.
+                        val hit = PreviewGeometry.touchToFrame(offset.x, offset.y, surf.frameRect())
+                            ?: return@detectTapGestures
                         focusPoint = offset
-                        cameraManager?.tapToFocus(offset.x, offset.y, size.width.toFloat(), size.height.toFloat())
+                        val (sx, sy) = PreviewGeometry.displayToSensor(
+                            hit.first, hit.second, surf.previewRotation, surf.isMirror
+                        )
+                        cameraManager?.tapToFocus(sx, sy)
                         coroutineScope.launch {
                             delay(1800)
                             focusPoint = null
@@ -675,7 +696,8 @@ private suspend fun executePhotoCapture(
             preset = preset,
             settings = settings,
             lutManager = lutManager,
-            doubleExpBitmap = doubleExpBitmap
+            doubleExpBitmap = doubleExpBitmap,
+            mirrorHorizontally = settings.mirrorFrontCamera && cm.isFrontCamera
         )
 
         // Save high-resolution still to MediaStore Pictures/RetroCam

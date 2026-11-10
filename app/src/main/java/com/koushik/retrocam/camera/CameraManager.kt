@@ -10,6 +10,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
 import androidx.camera.video.VideoCapture
 import androidx.core.content.ContextCompat
+import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
 import com.koushik.retrocam.data.model.CameraPreset
 import com.koushik.retrocam.gl.LUTManager
@@ -36,6 +37,7 @@ class CameraManager(
 
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
+    private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
@@ -64,20 +66,28 @@ class CameraManager(
     suspend fun initCamera(
         surfaceProvider: Preview.SurfaceProvider
     ): Boolean = withContext(Dispatchers.Main) {
-        val provider = suspendCancellableCoroutine<ProcessCameraProvider> { cont ->
-            val future = ProcessCameraProvider.getInstance(context)
-            future.addListener({
-                try {
-                    cont.resume(future.get())
-                } catch (e: Exception) {
-                    cont.resumeWithException(e)
-                }
-            }, ContextCompat.getMainExecutor(context))
-        }
+        try {
+            val provider = suspendCancellableCoroutine<ProcessCameraProvider> { cont ->
+                val future = ProcessCameraProvider.getInstance(context)
+                future.addListener({
+                    try {
+                        cont.resume(future.get())
+                    } catch (e: Exception) {
+                        cont.resumeWithException(e)
+                    }
+                }, ContextCompat.getMainExecutor(context))
+            }
 
-        cameraProvider = provider
-        bindCameraUseCases(surfaceProvider)
+            cameraProvider = provider
+            bindCameraUseCases(surfaceProvider)
+        } catch (e: Exception) {
+            Log.e(TAG, "Camera init failed: ${e.message}", e)
+            false
+        }
     }
+
+    /** Re-issue the preview request (e.g. after the GL context was recreated). */
+    fun rebind(surfaceProvider: Preview.SurfaceProvider): Boolean = bindCameraUseCases(surfaceProvider)
 
     fun switchCamera(surfaceProvider: Preview.SurfaceProvider) {
         isFrontCamera = !isFrontCamera
@@ -115,10 +125,11 @@ class CameraManager(
         camera?.cameraControl?.setZoomRatio(zoomRatio.coerceIn(range.first, range.second))
     }
 
-    fun tapToFocus(x: Float, y: Float, viewWidth: Float, viewHeight: Float) {
+    /** [x],[y] are 0..1 in sensor orientation (see PreviewGeometry.displayToSensor). */
+    fun tapToFocus(x: Float, y: Float) {
         val cam = camera ?: return
-        val factory = SurfaceOrientedMeteringPointFactory(viewWidth, viewHeight)
-        val point = factory.createPoint(x, y)
+        val factory = SurfaceOrientedMeteringPointFactory(1f, 1f)
+        val point = factory.createPoint(x.coerceIn(0f, 1f), y.coerceIn(0f, 1f))
         val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
             .setAutoCancelDuration(3, java.util.concurrent.TimeUnit.SECONDS)
             .build()
@@ -143,6 +154,7 @@ class CameraManager(
             .setTargetAspectRatio(AspectRatio.RATIO_4_3)
             .build()
         preview.setSurfaceProvider(surfaceProvider)
+        this.preview = preview
 
         imageCapture = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
@@ -203,10 +215,13 @@ class CameraManager(
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     try {
-                        val rotation = image.imageInfo.rotationDegrees
                         val buffer = image.planes[0].buffer
                         val bytes = ByteArray(buffer.remaining())
                         buffer.get(bytes)
+                        // BitmapFactory ignores EXIF, so the JPEG's own orientation tag is the
+                        // ground truth for how the pixels must be turned upright.
+                        val rotation = jpegRotationDegrees(bytes, image.imageInfo.rotationDegrees)
+                        Log.i(TAG, "Capture ${image.width}x${image.height} exif/info rotation=$rotation")
                         val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                         image.close()
 
@@ -227,6 +242,15 @@ class CameraManager(
                 }
             }
         )
+    }
+
+    private fun jpegRotationDegrees(jpeg: ByteArray, fallback: Int): Int {
+        return try {
+            val exif = ExifInterface(ByteArrayInputStream(jpeg))
+            if (exif.getAttribute(ExifInterface.TAG_ORIENTATION) != null) exif.rotationDegrees else fallback
+        } catch (e: Exception) {
+            fallback
+        }
     }
 
     fun startRecording(
