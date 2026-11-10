@@ -16,6 +16,7 @@ import com.koushik.retrocam.gl.LUTManager
 import com.koushik.retrocam.gl.RetroVideoEffect
 import com.koushik.retrocam.gl.RetroVideoProcessor
 import com.koushik.retrocam.util.MediaStoreHelper
+import com.koushik.retrocam.util.SceneStats
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -40,6 +41,12 @@ class CameraManager(
     private var activeRecording: Recording? = null
 
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val analysisExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+
+    /** Receives smoothed live scene statistics on the main thread (null if analysis could not be bound). */
+    var onSceneStats: ((SceneStats) -> Unit)? = null
+    var analysisActive: Boolean = false
+        private set
 
     private val lutManager = LUTManager()
     val videoProcessor = RetroVideoProcessor(lutManager)
@@ -88,8 +95,24 @@ class CameraManager(
         return isTorchOn
     }
 
+    /** Min/max zoom of the active camera (S25 Ultra reports about 0.6x to 10x+). */
+    fun zoomRange(): Pair<Float, Float>? {
+        val zs = camera?.cameraInfo?.zoomState?.value ?: return null
+        return Pair(zs.minZoomRatio, zs.maxZoomRatio)
+    }
+
+    /** Exposure compensation as (minIndex, maxIndex, evPerStep), or null when unsupported. */
+    fun exposureRange(): Triple<Int, Int, Float>? {
+        val es = camera?.cameraInfo?.exposureState ?: return null
+        if (!es.isExposureCompensationSupported) return null
+        val r = es.exposureCompensationRange
+        if (r.upper <= r.lower) return null
+        return Triple(r.lower, r.upper, es.exposureCompensationStep.toFloat())
+    }
+
     fun setZoom(zoomRatio: Float) {
-        camera?.cameraControl?.setZoomRatio(zoomRatio.coerceIn(1.0f, 5.0f))
+        val range = zoomRange() ?: Pair(1.0f, 5.0f)
+        camera?.cameraControl?.setZoomRatio(zoomRatio.coerceIn(range.first, range.second))
     }
 
     fun tapToFocus(x: Float, y: Float, viewWidth: Float, viewHeight: Float) {
@@ -132,36 +155,40 @@ class CameraManager(
             .build()
         videoCapture = VideoCapture.withOutput(recorder)
 
-        try {
-            val useCaseGroup = UseCaseGroup.Builder()
-                .addUseCase(preview)
-                .addUseCase(imageCapture!!)
-                .addUseCase(videoCapture!!)
-                .addEffect(videoEffect)
-                .build()
+        val mainExecutor = ContextCompat.getMainExecutor(context)
+        val analysis = ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+        analysis.setAnalyzer(analysisExecutor, SceneAnalyzer { stats ->
+            mainExecutor.execute { onSceneStats?.invoke(stats) }
+        })
 
-            camera = provider.bindToLifecycle(
-                lifecycleOwner,
-                cameraSelector,
-                useCaseGroup
-            )
-            return true
-        } catch (e: Exception) {
-            Log.w(TAG, "Binding with video effect failed, falling back to direct use cases: ${e.message}")
+        // Try the richest combination first, then degrade gracefully on devices that cannot do it.
+        val attempts = listOf(
+            Pair(true, true),    // video effect + live analysis
+            Pair(true, false),   // video effect only
+            Pair(false, true),   // analysis only
+            Pair(false, false)   // plain preview / photo / video
+        )
+        for ((withEffect, withAnalysis) in attempts) {
             try {
-                camera = provider.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    preview,
-                    imageCapture,
-                    videoCapture
-                )
+                val group = UseCaseGroup.Builder()
+                    .addUseCase(preview)
+                    .addUseCase(imageCapture!!)
+                    .addUseCase(videoCapture!!)
+                if (withAnalysis) group.addUseCase(analysis)
+                if (withEffect) group.addEffect(videoEffect)
+                camera = provider.bindToLifecycle(lifecycleOwner, cameraSelector, group.build())
+                analysisActive = withAnalysis
+                Log.i(TAG, "Bound camera (effect=$withEffect, analysis=$withAnalysis)")
                 return true
-            } catch (e2: Exception) {
-                Log.e(TAG, "Use case binding failed", e2)
-                return false
+            } catch (e: Exception) {
+                Log.w(TAG, "Bind attempt failed (effect=$withEffect, analysis=$withAnalysis): ${e.message}")
+                provider.unbindAll()
             }
         }
+        Log.e(TAG, "All use case binding attempts failed")
+        return false
     }
 
     suspend fun capturePhoto(): Pair<Bitmap, Int> = suspendCancellableCoroutine { cont ->
@@ -262,6 +289,7 @@ class CameraManager(
 
     fun onDestroy() {
         cameraExecutor.shutdown()
+        analysisExecutor.shutdown()
         cameraProvider?.unbindAll()
         videoProcessor.release()
         lutManager.release()

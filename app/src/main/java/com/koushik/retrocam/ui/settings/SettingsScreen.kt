@@ -109,6 +109,13 @@ fun SettingsScreen(
                 )
 
                 SettingsSwitchRow(
+                    title = "Pro Coach",
+                    subtitle = "Live tips: level, exposure, light, lens and look suggestions",
+                    checked = settings.proCoach,
+                    onCheckedChange = { onUpdateSettings(settings.copy(proCoach = it)) }
+                )
+
+                SettingsSwitchRow(
                     title = "Frames & Borders",
                     subtitle = "Apply Polaroid, film strip, and rounded borders",
                     checked = settings.frameEnabled,

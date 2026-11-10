@@ -49,7 +49,11 @@ import com.koushik.retrocam.gl.LUTManager
 import com.koushik.retrocam.gl.StillImageProcessor
 import com.koushik.retrocam.ui.camera.components.*
 import com.koushik.retrocam.ui.theme.*
+import com.koushik.retrocam.util.CoachTip
+import com.koushik.retrocam.util.DeviceProfile
 import com.koushik.retrocam.util.HapticsHelper
+import com.koushik.retrocam.util.ProCoach
+import com.koushik.retrocam.util.SceneStats
 import com.koushik.retrocam.util.MediaStoreHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -91,6 +95,15 @@ fun CameraScreen(
     // Double exposure state
     var doubleExpBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
+    // Pro mode state (lens range, exposure compensation, live scene analysis, coach tips)
+    var zoomRange by remember { mutableStateOf(Pair(1.0f, 5.0f)) }
+    var evRange by remember { mutableStateOf<Triple<Int, Int, Float>?>(null) }
+    var evIndex by remember { mutableIntStateOf(0) }
+    var sceneStats by remember { mutableStateOf<SceneStats?>(null) }
+    var cameraEpoch by remember { mutableIntStateOf(0) }
+    var dismissedTipId by remember { mutableStateOf<String?>(null) }
+    var shownTip by remember { mutableStateOf<CoachTip?>(null) }
+
     // Accelerometer for spirit level
     var deviceRoll by remember { mutableFloatStateOf(0f) }
     var devicePitch by remember { mutableFloatStateOf(0f) }
@@ -116,6 +129,43 @@ fun CameraScreen(
             sensorManager?.unregisterListener(listener)
         }
     }
+
+    // Read the real zoom/exposure range from the camera once it is bound, and listen for scene stats
+    LaunchedEffect(cameraManager, cameraEpoch) {
+        val cm = cameraManager ?: return@LaunchedEffect
+        cm.onSceneStats = { stats -> sceneStats = stats }
+        for (attempt in 0 until 25) {
+            val zr = cm.zoomRange()
+            if (zr != null) {
+                zoomRange = zr
+                evRange = cm.exposureRange()
+                return@LaunchedEffect
+            }
+            delay(300)
+        }
+    }
+
+    // Pro Coach: pick the most useful tip, debounced so it never flickers
+    val rawTip: CoachTip? = if (settings.proCoach && !isShooting) {
+        ProCoach.advise(
+            stats = sceneStats,
+            rollDeg = deviceRoll,
+            zoom = zoomRatio,
+            minZoom = zoomRange.first,
+            maxOpticalZoom = DeviceProfile.maxOpticalZoom,
+            gridOn = settings.gridEnabled,
+            currentPresetId = selectedPreset.id,
+            isFront = cameraManager?.isFrontCamera == true,
+            isRecording = isRecording
+        )
+    } else null
+    LaunchedEffect(rawTip?.id) {
+        delay(if (rawTip == null) 400L else 700L)
+        shownTip = rawTip
+        if (rawTip?.id != dismissedTipId) dismissedTipId = null
+    }
+    val displayTip: CoachTip? =
+        if (rawTip != null && rawTip.id == shownTip?.id) rawTip else shownTip
 
     // Load initial gallery thumbnail
     LaunchedEffect(Unit) {
@@ -234,7 +284,7 @@ fun CameraScreen(
             factory = { ctx ->
                 CameraEffectSurface(ctx).apply {
                     currentPreset = selectedPreset
-                    currentZoom = zoomRatio
+                    currentZoom = 1.0f
                     isMirror = settings.mirrorFrontCamera && (cameraManager?.isFrontCamera == true)
                     effectSurface = this
 
@@ -248,16 +298,15 @@ fun CameraScreen(
             update = { surface ->
                 surface.currentPreset = selectedPreset
                 cameraManager?.setPreset(selectedPreset)
-                surface.currentZoom = zoomRatio
+                surface.currentZoom = 1.0f
                 surface.isMirror = settings.mirrorFrontCamera && (cameraManager?.isFrontCamera == true)
             },
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTransformGestures { _, _, zoom, _ ->
-                        zoomRatio = (zoomRatio * zoom).coerceIn(1.0f, 5.0f)
+                        zoomRatio = (zoomRatio * zoom).coerceIn(zoomRange.first, zoomRange.second)
                         cameraManager?.setZoom(zoomRatio)
-                        effectSurface?.currentZoom = zoomRatio
                     }
                 }
                 .pointerInput(Unit) {
@@ -296,6 +345,57 @@ fun CameraScreen(
                 delay(65)
                 showFlashOverlay = false
             }
+        }
+
+        // 3b. Pro Coach banner + exposure control
+        AnimatedVisibility(
+            visible = displayTip != null && displayTip.id != dismissedTipId,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 60.dp)
+        ) {
+            val tip = displayTip
+            if (tip != null) {
+                CoachBanner(
+                    tip = tip,
+                    onTry = { id ->
+                        presets.find { it.id == id }?.let { p ->
+                            selectedPreset = p
+                            effectSurface?.currentPreset = p
+                            cameraManager?.setPreset(p)
+                            haptics.vibrateDialTick(settings.hapticFeedback)
+                            onUpdateSettings(settings.copy(selectedPresetId = p.id))
+                        }
+                        dismissedTipId = tip.id
+                    },
+                    onDismiss = { dismissedTipId = tip.id }
+                )
+            }
+        }
+
+        val ev = evRange
+        if (ev != null) {
+            EvControl(
+                evText = "EV " + "%+.1f".format(evIndex * ev.third),
+                onUp = {
+                    evIndex = (evIndex + 1).coerceAtMost(ev.second)
+                    cameraManager?.setExposureIndex(evIndex)
+                },
+                onDown = {
+                    evIndex = (evIndex - 1).coerceAtLeast(ev.first)
+                    cameraManager?.setExposureIndex(evIndex)
+                },
+                onReset = {
+                    evIndex = 0
+                    cameraManager?.setExposureIndex(0)
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 8.dp)
+            )
         }
 
         // 4. Top Quick Settings Bar
@@ -381,6 +481,22 @@ fun CameraScreen(
                 )
             }
 
+            // Pro Coach toggle
+            IconButton(
+                onClick = {
+                    onUpdateSettings(settings.copy(proCoach = !settings.proCoach))
+                    haptics.vibrateDialTick(settings.hapticFeedback)
+                }
+            ) {
+                Text(
+                    text = "PRO",
+                    color = if (settings.proCoach) RetroAmber else RetroGray,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             // Settings Screen
             IconButton(onClick = onNavigateToSettings) {
                 Icon(
@@ -400,6 +516,20 @@ fun CameraScreen(
                 .padding(bottom = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Lens selector (0.6x / 1x / 2x / 3x / 5x ... limited to the camera's real zoom range)
+            LensSelector(
+                zoom = zoomRatio,
+                minZoom = zoomRange.first,
+                maxZoom = zoomRange.second,
+                caption = DeviceProfile.caption,
+                onSelect = { z ->
+                    zoomRatio = z
+                    cameraManager?.setZoom(z)
+                    haptics.vibrateDialTick(settings.hapticFeedback)
+                },
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+
             // Camera Mode Selector (PHOTO, VIDEO, DOUBLE EXP, BURST)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -489,6 +619,11 @@ fun CameraScreen(
                         haptics.vibrateDialTick(settings.hapticFeedback)
                         val surf = effectSurface ?: return@IconButton
                         cameraManager?.switchCamera(surf.getSurfaceProvider())
+                        zoomRatio = 1.0f
+                        evIndex = 0
+                        sceneStats = null
+                        zoomRange = Pair(1.0f, 5.0f)
+                        cameraEpoch++
                     },
                     modifier = Modifier
                         .size(52.dp)

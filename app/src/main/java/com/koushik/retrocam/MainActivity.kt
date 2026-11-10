@@ -102,6 +102,7 @@ class MainActivity : ComponentActivity() {
                                             settingsRepo.toggleHaptics(newSettings.hapticFeedback)
                                             settingsRepo.setSaveFormat(newSettings.saveFormat)
                                             settingsRepo.toggleFrame(newSettings.frameEnabled)
+                                            settingsRepo.toggleProCoach(newSettings.proCoach)
                                         }
                                     },
                                     onNavigateToGallery = { currentScreen = Screen.Gallery },
@@ -130,6 +131,7 @@ class MainActivity : ComponentActivity() {
                                             settingsRepo.toggleHaptics(newSettings.hapticFeedback)
                                             settingsRepo.setSaveFormat(newSettings.saveFormat)
                                             settingsRepo.toggleFrame(newSettings.frameEnabled)
+                                            settingsRepo.toggleProCoach(newSettings.proCoach)
                                         }
                                     },
                                     onNavigateBack = { currentScreen = Screen.Camera }

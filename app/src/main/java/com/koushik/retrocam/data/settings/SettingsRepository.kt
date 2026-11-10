@@ -25,6 +25,7 @@ class SettingsRepository(private val context: Context) {
         val HAPTICS = booleanPreferencesKey("haptics")
         val SAVE_FORMAT = stringPreferencesKey("save_format")
         val FRAME_ENABLED = booleanPreferencesKey("frame_enabled")
+        val PRO_COACH = booleanPreferencesKey("pro_coach")
     }
 
     val settingsFlow: Flow<CameraSettings> = context.dataStore.data
@@ -47,6 +48,7 @@ class SettingsRepository(private val context: Context) {
             val formatStr = prefs[Keys.SAVE_FORMAT] ?: SaveFormat.JPEG_HIGH.name
             val format = try { SaveFormat.valueOf(formatStr) } catch (e: Exception) { SaveFormat.JPEG_HIGH }
             val frameEnabled = prefs[Keys.FRAME_ENABLED] ?: true
+            val proCoach = prefs[Keys.PRO_COACH] ?: true
 
             CameraSettings(
                 selectedPresetId = presetId,
@@ -58,7 +60,8 @@ class SettingsRepository(private val context: Context) {
                 shutterSound = sound,
                 hapticFeedback = haptics,
                 saveFormat = format,
-                frameEnabled = frameEnabled
+                frameEnabled = frameEnabled,
+                proCoach = proCoach
             )
         }
 
@@ -101,5 +104,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun toggleFrame(enabled: Boolean) {
         context.dataStore.edit { it[Keys.FRAME_ENABLED] = enabled }
     }
-}
 
+    suspend fun toggleProCoach(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.PRO_COACH] = enabled }
+    }
+}

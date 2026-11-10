@@ -24,6 +24,7 @@ data class CameraSettings(
     val hapticFeedback: Boolean = true,
     val saveFormat: SaveFormat = SaveFormat.JPEG_HIGH,
     val frameEnabled: Boolean = true,
+    val proCoach: Boolean = true,
     val doubleExposureIntensity: Float = 0.5f
 )
 
