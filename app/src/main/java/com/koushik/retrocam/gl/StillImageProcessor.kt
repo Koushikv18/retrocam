@@ -26,11 +26,15 @@ class StillImageProcessor {
         preset: CameraPreset,
         settings: CameraSettings,
         lutManager: LUTManager,
-        doubleExpBitmap: Bitmap? = null
+        doubleExpBitmap: Bitmap? = null,
+        mirrorHorizontally: Boolean = false
     ): Bitmap = withContext(Dispatchers.Default) {
-        // 1. Correct rotation and crop to preset aspect ratio
-        val oriented = if (rotationDegrees != 0) {
-            val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+        // 1. Correct rotation (and selfie mirroring, so the photo matches the mirrored preview)
+        val oriented = if (rotationDegrees != 0 || mirrorHorizontally) {
+            val matrix = Matrix().apply {
+                if (rotationDegrees != 0) postRotate(rotationDegrees.toFloat())
+                if (mirrorHorizontally) postScale(-1f, 1f)
+            }
             Bitmap.createBitmap(inputBitmap, 0, 0, inputBitmap.width, inputBitmap.height, matrix, true)
         } else {
             inputBitmap

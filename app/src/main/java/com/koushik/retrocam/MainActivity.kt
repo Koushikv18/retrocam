@@ -151,6 +151,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // The user may have granted permissions from system Settings while we were paused.
+        hasCameraPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        hasAudioPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    }
+
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf(
             Manifest.permission.CAMERA,
