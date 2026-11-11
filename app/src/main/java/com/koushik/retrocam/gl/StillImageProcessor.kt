@@ -26,18 +26,15 @@ class StillImageProcessor {
         preset: CameraPreset,
         settings: CameraSettings,
         lutManager: LUTManager,
-        doubleExpBitmap: Bitmap? = null
+        doubleExpBitmap: Bitmap? = null,
+        mirror: Boolean = false
     ): Bitmap = withContext(Dispatchers.Default) {
-        // 1. Correct rotation and crop to preset aspect ratio
-        val oriented = if (rotationDegrees != 0) {
-            val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
-            Bitmap.createBitmap(inputBitmap, 0, 0, inputBitmap.width, inputBitmap.height, matrix, true)
-        } else {
-            inputBitmap
-        }
-
-        // Crop to preset aspect ratio
-        val cropped = cropToAspectRatio(oriented, preset.aspectRatioFloat)
+        // 1. Correct rotation and crop to the preset aspect ratio (portrait for upright photos,
+        //    landscape for landscape sources such as imported images)
+        val oriented = orient(inputBitmap, rotationDegrees)
+        val portrait = preset.captureAspect
+        val targetAspect = if (oriented.width > oriented.height && portrait < 1f) 1f / portrait else portrait
+        val cropped = cropToAspectRatio(oriented, targetAspect)
 
         // Limit size to max 4096 for GPU texture
         val maxDim = max(cropped.width, cropped.height)
@@ -63,7 +60,7 @@ class StillImageProcessor {
 
         // Upload double exposure texture if present
         val doubleExpTexId = doubleExpBitmap?.let {
-            val scaledExp = Bitmap.createScaledBitmap(it, width, height, true)
+            val scaledExp = Bitmap.createScaledBitmap(cropToAspectRatio(it, targetAspect), width, height, true)
             uploadBitmapToTexture(scaledExp)
         }
 
@@ -77,7 +74,7 @@ class StillImageProcessor {
             height = height,
             timeSeconds = (System.currentTimeMillis() % 100000).toFloat() / 1000f,
             zoom = 1.0f,
-            mirror = false,
+            mirror = mirror,
             texMatrix = null,
             doubleExpTextureId = doubleExpTexId,
             doubleExpIntensity = settings.doubleExposureIntensity
@@ -117,6 +114,13 @@ class StillImageProcessor {
 
         framedBitmap
     }
+
+    /** Rotates a decoded camera bitmap so it is upright. */
+    fun orient(src: Bitmap, rotationDegrees: Int): Bitmap =
+        if (rotationDegrees != 0) {
+            val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+            Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, true)
+        } else src
 
     private fun cropToAspectRatio(src: Bitmap, targetRatio: Float): Bitmap {
         val srcRatio = src.width.toFloat() / src.height.toFloat()

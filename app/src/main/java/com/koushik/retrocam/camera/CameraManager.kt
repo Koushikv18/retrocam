@@ -61,22 +61,34 @@ class CameraManager(
     var isTorchOn: Boolean = false
         private set
 
+    /** Human-readable reason if the camera could not be started (shown on screen). */
+    var lastError: String? = null
+        private set
+
     suspend fun initCamera(
         surfaceProvider: Preview.SurfaceProvider
     ): Boolean = withContext(Dispatchers.Main) {
-        val provider = suspendCancellableCoroutine<ProcessCameraProvider> { cont ->
-            val future = ProcessCameraProvider.getInstance(context)
-            future.addListener({
-                try {
-                    cont.resume(future.get())
-                } catch (e: Exception) {
-                    cont.resumeWithException(e)
-                }
-            }, ContextCompat.getMainExecutor(context))
-        }
+        try {
+            val provider = suspendCancellableCoroutine<ProcessCameraProvider> { cont ->
+                val future = ProcessCameraProvider.getInstance(context)
+                future.addListener({
+                    try {
+                        cont.resume(future.get())
+                    } catch (e: Exception) {
+                        cont.resumeWithException(e)
+                    }
+                }, ContextCompat.getMainExecutor(context))
+            }
 
-        cameraProvider = provider
-        bindCameraUseCases(surfaceProvider)
+            cameraProvider = provider
+            val ok = bindCameraUseCases(surfaceProvider)
+            if (ok) lastError = null
+            ok
+        } catch (e: Exception) {
+            Log.e(TAG, "initCamera failed", e)
+            lastError = "Camera init failed: ${e.message}"
+            false
+        }
     }
 
     fun switchCamera(surfaceProvider: Preview.SurfaceProvider) {
@@ -151,7 +163,12 @@ class CameraManager(
             .build()
 
         val recorder = Recorder.Builder()
-            .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
+            .setQualitySelector(
+                QualitySelector.fromOrderedList(
+                    listOf(Quality.FHD, Quality.HD, Quality.SD),
+                    FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+                )
+            )
             .build()
         videoCapture = VideoCapture.withOutput(recorder)
 
@@ -164,32 +181,41 @@ class CameraManager(
         })
 
         // Try the richest combination first, then degrade gracefully on devices that cannot do it.
-        val attempts = listOf(
-            Pair(true, true),    // video effect + live analysis
-            Pair(true, false),   // video effect only
-            Pair(false, true),   // analysis only
-            Pair(false, false)   // plain preview / photo / video
+        // Each plan: (video effect, live analysis, video recording, photo capture)
+        val plans = listOf(
+            BindPlan(effect = true, analysis = true, video = true, image = true),
+            BindPlan(effect = true, analysis = false, video = true, image = true),
+            BindPlan(effect = false, analysis = true, video = true, image = true),
+            BindPlan(effect = false, analysis = false, video = true, image = true),
+            BindPlan(effect = false, analysis = false, video = false, image = true),   // photo only
+            BindPlan(effect = false, analysis = false, video = false, image = false)   // preview only
         )
-        for ((withEffect, withAnalysis) in attempts) {
+        var lastMessage: String? = null
+        for (plan in plans) {
             try {
-                val group = UseCaseGroup.Builder()
-                    .addUseCase(preview)
-                    .addUseCase(imageCapture!!)
-                    .addUseCase(videoCapture!!)
-                if (withAnalysis) group.addUseCase(analysis)
-                if (withEffect) group.addEffect(videoEffect)
+                val group = UseCaseGroup.Builder().addUseCase(preview)
+                if (plan.image) group.addUseCase(imageCapture!!)
+                if (plan.video) group.addUseCase(videoCapture!!)
+                if (plan.analysis) group.addUseCase(analysis)
+                if (plan.effect) group.addEffect(videoEffect)
                 camera = provider.bindToLifecycle(lifecycleOwner, cameraSelector, group.build())
-                analysisActive = withAnalysis
-                Log.i(TAG, "Bound camera (effect=$withEffect, analysis=$withAnalysis)")
+                analysisActive = plan.analysis
+                if (!plan.video) videoCapture = null
+                if (!plan.image) imageCapture = null
+                Log.i(TAG, "Bound camera: $plan")
                 return true
             } catch (e: Exception) {
-                Log.w(TAG, "Bind attempt failed (effect=$withEffect, analysis=$withAnalysis): ${e.message}")
+                lastMessage = e.message
+                Log.w(TAG, "Bind attempt failed ($plan): ${e.message}")
                 provider.unbindAll()
             }
         }
-        Log.e(TAG, "All use case binding attempts failed")
+        lastError = "Could not start the camera: ${lastMessage ?: "unknown error"}"
+        Log.e(TAG, lastError ?: "bind failed")
         return false
     }
+
+    private data class BindPlan(val effect: Boolean, val analysis: Boolean, val video: Boolean, val image: Boolean)
 
     suspend fun capturePhoto(): Pair<Bitmap, Int> = suspendCancellableCoroutine { cont ->
         val capture = imageCapture

@@ -36,6 +36,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -103,6 +105,8 @@ fun CameraScreen(
     var cameraEpoch by remember { mutableIntStateOf(0) }
     var dismissedTipId by remember { mutableStateOf<String?>(null) }
     var shownTip by remember { mutableStateOf<CoachTip?>(null) }
+    var cameraProblem by remember { mutableStateOf<String?>(null) }
+    var burstActive by remember { mutableStateOf(false) }
 
     // Accelerometer for spirit level
     var deviceRoll by remember { mutableFloatStateOf(0f) }
@@ -145,6 +149,35 @@ fun CameraScreen(
         }
     }
 
+    // Keep the GL preview in step with the activity lifecycle
+    DisposableEffect(lifecycleOwner, effectSurface) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> effectSurface?.onPause()
+                Lifecycle.Event.ON_RESUME -> effectSurface?.onResume()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Watchdog: if no camera frame has been drawn after a few seconds, say why instead of showing black
+    LaunchedEffect(effectSurface, cameraEpoch) {
+        val es = effectSurface ?: return@LaunchedEffect
+        delay(3500)
+        if (es.framesRendered == 0L) {
+            cameraProblem = cameraManager?.lastError
+                ?: "The camera opened but sent no frames. Tap RETRY, and close any other app using the camera."
+        }
+    }
+    LaunchedEffect(cameraProblem) {
+        while (cameraProblem != null) {
+            delay(500)
+            if ((effectSurface?.framesRendered ?: 0L) > 0L) cameraProblem = null
+        }
+    }
+
     // Pro Coach: pick the most useful tip, debounced so it never flickers
     val rawTip: CoachTip? = if (settings.proCoach && !isShooting) {
         ProCoach.advise(
@@ -180,9 +213,55 @@ fun CameraScreen(
         uri?.let { onNavigateToEdit(it) }
     }
 
+    suspend fun captureOnce() {
+        executePhotoCapture(
+            cameraManager = cameraManager,
+            stillProcessor = stillProcessor,
+            lutManager = lutManager,
+            preset = selectedPreset,
+            settings = settings,
+            haptics = haptics,
+            context = context,
+            doubleExpBitmap = doubleExpBitmap,
+            cameraMode = cameraMode,
+            onStart = {
+                isShooting = true
+                showFlashOverlay = true
+            },
+            onDoubleExpCaptured = { bmp ->
+                doubleExpBitmap = bmp
+                haptics.vibrateDoubleExposure(settings.hapticFeedback)
+                isShooting = false
+                showFlashOverlay = false
+            },
+            onComplete = { uri ->
+                isShooting = false
+                showFlashOverlay = false
+                doubleExpBitmap = null
+                if (uri != null) latestPhotoUri = uri
+            }
+        )
+    }
+
+    suspend fun shootSequence() {
+        if (cameraMode == CameraMode.BURST) {
+            burstActive = true
+            try {
+                for (i in 1..5) {
+                    captureOnce()
+                    delay(150)
+                }
+            } finally {
+                burstActive = false
+            }
+        } else {
+            captureOnce()
+        }
+    }
+
     // Shutter capture trigger
     fun triggerShutter() {
-        if (isShooting) return
+        if (isShooting || burstActive) return
 
         if (cameraMode == CameraMode.VIDEO) {
             val cm = cameraManager ?: return
@@ -213,65 +292,13 @@ fun CameraScreen(
                     delay(1000)
                 }
                 countdownSeconds = null
-                executePhotoCapture(
-                    cameraManager = cameraManager,
-                    stillProcessor = stillProcessor,
-                    lutManager = lutManager,
-                    preset = selectedPreset,
-                    settings = settings,
-                    haptics = haptics,
-                    context = context,
-                    doubleExpBitmap = doubleExpBitmap,
-                    onStart = {
-                        isShooting = true
-                        showFlashOverlay = true
-                    },
-                    onDoubleExpCaptured = { bmp ->
-                        doubleExpBitmap = bmp
-                        haptics.vibrateDoubleExposure(settings.hapticFeedback)
-                        isShooting = false
-                        showFlashOverlay = false
-                    },
-                    onComplete = { uri ->
-                        isShooting = false
-                        showFlashOverlay = false
-                        doubleExpBitmap = null
-                        latestPhotoUri = uri
-                    }
-                )
+                shootSequence()
             }
             return
         }
 
         // Direct capture
-        coroutineScope.launch {
-            executePhotoCapture(
-                cameraManager = cameraManager,
-                stillProcessor = stillProcessor,
-                lutManager = lutManager,
-                preset = selectedPreset,
-                settings = settings,
-                haptics = haptics,
-                context = context,
-                doubleExpBitmap = doubleExpBitmap,
-                onStart = {
-                    isShooting = true
-                    showFlashOverlay = true
-                },
-                onDoubleExpCaptured = { bmp ->
-                    doubleExpBitmap = bmp
-                    haptics.vibrateDoubleExposure(settings.hapticFeedback)
-                    isShooting = false
-                    showFlashOverlay = false
-                },
-                onComplete = { uri ->
-                    isShooting = false
-                    showFlashOverlay = false
-                    doubleExpBitmap = null
-                    latestPhotoUri = uri
-                }
-            )
-        }
+        coroutineScope.launch { shootSequence() }
     }
 
     Box(
@@ -279,60 +306,124 @@ fun CameraScreen(
             .fillMaxSize()
             .background(RetroBlack)
     ) {
-        // 1. OpenGL Camera Preview Surface with Gestures
-        AndroidView(
-            factory = { ctx ->
-                CameraEffectSurface(ctx).apply {
-                    currentPreset = selectedPreset
-                    currentZoom = 1.0f
-                    isMirror = settings.mirrorFrontCamera && (cameraManager?.isFrontCamera == true)
-                    effectSurface = this
-
-                    val cm = CameraManager(ctx, lifecycleOwner)
-                    cameraManager = cm
-                    coroutineScope.launch {
-                        cm.initCamera(getSurfaceProvider())
-                    }
-                }
-            },
-            update = { surface ->
-                surface.currentPreset = selectedPreset
-                cameraManager?.setPreset(selectedPreset)
-                surface.currentZoom = 1.0f
-                surface.isMirror = settings.mirrorFrontCamera && (cameraManager?.isFrontCamera == true)
-            },
+        // 1+2. WYSIWYG viewfinder: live preview, grid, frames and level all sit inside one box that
+        //      has exactly the aspect ratio of the saved photo, so what you see is what you capture.
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, _, zoom, _ ->
-                        zoomRatio = (zoomRatio * zoom).coerceIn(zoomRange.first, zoomRange.second)
-                        cameraManager?.setZoom(zoomRatio)
-                    }
-                }
-                .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        focusPoint = offset
-                        cameraManager?.tapToFocus(offset.x, offset.y, size.width.toFloat(), size.height.toFloat())
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 64.dp)
+                .fillMaxWidth()
+                .aspectRatio(selectedPreset.captureAspect)
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    CameraEffectSurface(ctx).apply {
+                        currentPreset = selectedPreset
+                        currentZoom = 1.0f
+                        isMirror = settings.mirrorFrontCamera && (cameraManager?.isFrontCamera == true)
+                        effectSurface = this
+
+                        val cm = CameraManager(ctx, lifecycleOwner)
+                        cameraManager = cm
+                        onGlRecreated = {
+                            coroutineScope.launch { cm.initCamera(getSurfaceProvider()) }
+                        }
                         coroutineScope.launch {
-                            delay(1800)
-                            focusPoint = null
+                            cm.initCamera(getSurfaceProvider())
                         }
                     }
-                }
-        )
+                },
+                update = { surface ->
+                    surface.currentPreset = selectedPreset
+                    cameraManager?.setPreset(selectedPreset)
+                    surface.currentZoom = 1.0f
+                    surface.isMirror = settings.mirrorFrontCamera && (cameraManager?.isFrontCamera == true)
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, _, zoom, _ ->
+                            zoomRatio = (zoomRatio * zoom).coerceIn(zoomRange.first, zoomRange.second)
+                            cameraManager?.setZoom(zoomRatio)
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            focusPoint = offset
+                            // Map the tap into the full camera frame (the preview shows a centre crop of it)
+                            val es = effectSurface
+                            val nx = 0.5f + (offset.x / size.width - 0.5f) * (es?.cropX ?: 1f)
+                            val ny = 0.5f + (offset.y / size.height - 0.5f) * (es?.cropY ?: 1f)
+                            cameraManager?.tapToFocus(nx, ny, 1f, 1f)
+                            coroutineScope.launch {
+                                delay(1800)
+                                focusPoint = null
+                            }
+                        }
+                    }
+            )
 
-        // 2. Viewfinder Overlay (Aspect ratio mask, live frame, grid, spirit level, countdown)
-        ViewfinderOverlay(
-            preset = selectedPreset,
-            gridEnabled = settings.gridEnabled,
-            levelEnabled = settings.levelEnabled,
-            devicePitch = devicePitch,
-            deviceRoll = deviceRoll,
-            countdownSeconds = countdownSeconds,
-            doubleExposureCount = if (doubleExpBitmap != null) 1 else 0,
-            focusPoint = focusPoint,
-            frameEnabled = settings.frameEnabled
-        )
+            ViewfinderOverlay(
+                preset = selectedPreset,
+                gridEnabled = settings.gridEnabled,
+                levelEnabled = settings.levelEnabled,
+                devicePitch = devicePitch,
+                deviceRoll = deviceRoll,
+                countdownSeconds = countdownSeconds,
+                doubleExposureCount = if (doubleExpBitmap != null) 1 else 0,
+                focusPoint = focusPoint,
+                frameEnabled = settings.frameEnabled
+            )
+        }
+
+        // Camera failure message (instead of a silent black screen)
+        val problem = cameraProblem
+        if (problem != null) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(32.dp)
+                    .background(Color.Black.copy(alpha = 0.88f), RoundedCornerShape(16.dp))
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "CAMERA NOT RUNNING",
+                    color = RetroAmber,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = problem,
+                    color = RetroWhite,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+                Text(
+                    text = "RETRY",
+                    color = RetroBlack,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .background(RetroAmber, RoundedCornerShape(10.dp))
+                        .clickable {
+                            val es = effectSurface
+                            val cm = cameraManager
+                            if (es != null && cm != null) {
+                                cameraProblem = null
+                                coroutineScope.launch {
+                                    cm.initCamera(es.getSurfaceProvider())
+                                    cameraEpoch++
+                                }
+                            }
+                        }
+                        .padding(horizontal = 18.dp, vertical = 8.dp)
+                )
+            }
+        }
 
         // 3. Shutter Flash Overlay
         if (showFlashOverlay) {
@@ -651,6 +742,7 @@ private suspend fun executePhotoCapture(
     haptics: HapticsHelper,
     context: Context,
     doubleExpBitmap: Bitmap?,
+    cameraMode: CameraMode,
     onStart: () -> Unit,
     onDoubleExpCaptured: (Bitmap) -> Unit,
     onComplete: (Uri?) -> Unit
@@ -662,9 +754,9 @@ private suspend fun executePhotoCapture(
     try {
         val (rawBitmap, rotation) = cm.capturePhoto()
 
-        if (doubleExpBitmap == null && preset.id == "half_frame") {
-            // First exposure of double exposure / diptych
-            onDoubleExpCaptured(rawBitmap)
+        if (doubleExpBitmap == null && (cameraMode == CameraMode.DOUBLE_EXPOSURE || preset.id == "half_frame")) {
+            // First exposure of double exposure / diptych (stored upright so the blend lines up)
+            onDoubleExpCaptured(stillProcessor.orient(rawBitmap, rotation))
             return
         }
 
@@ -675,7 +767,8 @@ private suspend fun executePhotoCapture(
             preset = preset,
             settings = settings,
             lutManager = lutManager,
-            doubleExpBitmap = doubleExpBitmap
+            doubleExpBitmap = doubleExpBitmap,
+            mirror = settings.mirrorFrontCamera && cm.isFrontCamera
         )
 
         // Save high-resolution still to MediaStore Pictures/RetroCam

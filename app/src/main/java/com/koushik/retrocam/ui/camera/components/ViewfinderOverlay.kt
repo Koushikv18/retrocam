@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.koushik.retrocam.data.model.CameraPreset
@@ -45,7 +46,7 @@ fun ViewfinderOverlay(
             val canvasH = size.height
 
             // Calculate active viewport based on preset aspect ratio
-            val targetRatio = preset.aspectRatioFloat
+            val targetRatio = preset.captureAspect
             val viewRatio = canvasW / canvasH
 
             val (cropW, cropH) = if (viewRatio > targetRatio) {
@@ -135,7 +136,7 @@ fun ViewfinderOverlay(
         focusPoint?.let { pt ->
             Box(
                 modifier = Modifier
-                    .offset(x = (pt.x - 30).dp, y = (pt.y - 30).dp)
+                    .offset { IntOffset((pt.x - 30.dp.toPx()).toInt(), (pt.y - 30.dp.toPx()).toInt()) }
                     .size(60.dp)
                     .border(1.5.dp, RetroAmber, RoundedCornerShape(4.dp))
             )

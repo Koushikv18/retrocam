@@ -1,3 +1,19 @@
+            // p is in display space (0,0 = bottom-left of what the user sees).
+            // Crop, zoom and mirror are applied here, THEN the camera's transform matrix
+            // (which carries rotation/flip of the sensor buffer) maps to buffer coordinates.
+            vec2 toTex(vec2 p) {
+                vec2 tc = (p - 0.5) * uCrop / uZoom;
+                if (uMirror > 0.5) {
+                    tc.x = -tc.x;
+                }
+                tc += 0.5;
+                return clamp((uTexMatrix * vec4(tc, 0.0, 1.0)).xy, 0.0, 1.0);
+            }
+
+            vec3 sampleMain(vec2 p) {
+                return texture(uMainTexture, toTex(p)).rgb;
+            }
+
 package com.koushik.retrocam.gl
 
 import android.opengl.GLES11Ext
@@ -35,6 +51,14 @@ class RetroFilterPipeline {
         0.0f, 0.0f, 0.0f, 1.0f
     )
 
+    // Bitmap textures have row 0 at the top, GL has t=0 at the bottom: flip when sampling.
+    private val flipYMatrix = floatArrayOf(
+        1.0f,  0.0f, 0.0f, 0.0f,
+        0.0f, -1.0f, 0.0f, 0.0f,
+        0.0f,  0.0f, 1.0f, 0.0f,
+        0.0f,  1.0f, 0.0f, 1.0f
+    )
+
     init {
         vertexBuffer = ByteBuffer.allocateDirect(vertexArray.size * 4)
             .order(ByteOrder.nativeOrder()).asFloatBuffer().apply {
@@ -55,11 +79,10 @@ class RetroFilterPipeline {
         val vs = """#version 300 es
             layout(location = 0) in vec2 aPosition;
             layout(location = 1) in vec2 aTexCoord;
-            uniform mat4 uTexMatrix;
-            out vec2 vTexCoord;
+            out vec2 vPos;
             void main() {
                 gl_Position = vec4(aPosition, 0.0, 1.0);
-                vTexCoord = (uTexMatrix * vec4(aTexCoord, 0.0, 1.0)).xy;
+                vPos = aTexCoord;
             }
         """.trimIndent()
 
@@ -101,7 +124,7 @@ class RetroFilterPipeline {
         }
 
         val body = """
-            in vec2 vTexCoord;
+            in vec2 vPos;
             out vec4 fragColor;
 
             uniform sampler3D uLut3D;
@@ -109,6 +132,8 @@ class RetroFilterPipeline {
             uniform float uTime;
             uniform float uZoom;
             uniform float uMirror;
+            uniform mat4 uTexMatrix;
+            uniform vec2 uCrop;
 
             uniform float uExposure;
             uniform float uContrast;
@@ -149,12 +174,7 @@ class RetroFilterPipeline {
             }
 
             void main() {
-                vec2 uv = vTexCoord;
-                if (uMirror > 0.5) {
-                    uv.x = 1.0 - uv.x;
-                }
-                
-                uv = (uv - 0.5) / uZoom + 0.5;
+                vec2 uv = vPos;
 
                 vec2 c = uv - 0.5;
                 float r2 = dot(c, c);
@@ -167,7 +187,7 @@ class RetroFilterPipeline {
                 );
 
                 if (uHasDoubleExp > 0) {
-                    vec3 expCol = texture(uDoubleExpTexture, uv).rgb;
+                    vec3 expCol = texture(uDoubleExpTexture, vec2(uMirror > 0.5 ? 1.0 - uv.x : uv.x, 1.0 - uv.y)).rgb;
                     col = 1.0 - (1.0 - col) * (1.0 - expCol * uDoubleExpIntensity);
                 }
 
@@ -253,6 +273,8 @@ class RetroFilterPipeline {
         zoom: Float = 1.0f,
         mirror: Boolean = false,
         texMatrix: FloatArray? = null,
+        cropX: Float = 1.0f,
+        cropY: Float = 1.0f,
         doubleExpTextureId: Int? = null,
         doubleExpIntensity: Float = 0.5f
     ) {
@@ -293,12 +315,13 @@ class RetroFilterPipeline {
         }
 
         // Matrices and coordinates
-        val mat = texMatrix ?: identityMatrix
+        val mat = texMatrix ?: if (isOesTexture) identityMatrix else flipYMatrix
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uTexMatrix"), 1, false, mat, 0)
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uResolution"), width.toFloat(), height.toFloat())
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uTime"), timeSeconds)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uZoom"), zoom)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uMirror"), if (mirror) 1.0f else 0.0f)
+        GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uCrop"), cropX, cropY)
 
         // Preset parameters
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uExposure"), preset.exposure)

@@ -57,5 +57,9 @@ data class CameraPreset(
 
     val aspectRatioFloat: Float
         get() = aspectWidth.toFloat() / aspectHeight.toFloat()
+
+    /** Aspect (width / height) of a photo taken with the phone held upright; always <= 1. */
+    val captureAspect: Float
+        get() = if (aspectRatioFloat > 1f) 1f / aspectRatioFloat else aspectRatioFloat
 }
 
