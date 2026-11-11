@@ -1,19 +1,3 @@
-            // p is in display space (0,0 = bottom-left of what the user sees).
-            // Crop, zoom and mirror are applied here, THEN the camera's transform matrix
-            // (which carries rotation/flip of the sensor buffer) maps to buffer coordinates.
-            vec2 toTex(vec2 p) {
-                vec2 tc = (p - 0.5) * uCrop / uZoom;
-                if (uMirror > 0.5) {
-                    tc.x = -tc.x;
-                }
-                tc += 0.5;
-                return clamp((uTexMatrix * vec4(tc, 0.0, 1.0)).xy, 0.0, 1.0);
-            }
-
-            vec3 sampleMain(vec2 p) {
-                return texture(uMainTexture, toTex(p)).rgb;
-            }
-
 package com.koushik.retrocam.gl
 
 import android.opengl.GLES11Ext
@@ -168,9 +152,20 @@ class RetroFilterPipeline {
                 return pow(c, vec3(1.0 / 2.2));
             }
 
-            vec3 sampleMain(vec2 uv) {
-                vec2 coord = clamp(uv, 0.0, 1.0);
-                return texture(uMainTexture, coord).rgb;
+            // p is in display space (0,0 = bottom-left of what the user sees).
+            // Crop, zoom and mirror are applied here, THEN the camera's transform matrix
+            // (which carries rotation/flip of the sensor buffer) maps to buffer coordinates.
+            vec2 toTex(vec2 p) {
+                vec2 tc = (p - 0.5) * uCrop / uZoom;
+                if (uMirror > 0.5) {
+                    tc.x = -tc.x;
+                }
+                tc += 0.5;
+                return clamp((uTexMatrix * vec4(tc, 0.0, 1.0)).xy, 0.0, 1.0);
+            }
+
+            vec3 sampleMain(vec2 p) {
+                return texture(uMainTexture, toTex(p)).rgb;
             }
 
             void main() {
