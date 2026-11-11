@@ -5,6 +5,7 @@ import android.graphics.SurfaceTexture
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
+import android.opengl.Matrix
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
@@ -12,6 +13,7 @@ import android.util.Log
 import android.view.Surface
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
+import androidx.core.content.ContextCompat
 import com.koushik.retrocam.data.model.CameraPreset
 import com.koushik.retrocam.gl.LUTManager
 import com.koushik.retrocam.gl.RetroFilterPipeline
@@ -41,6 +43,10 @@ class CameraEffectSurface @JvmOverloads constructor(
     private var lutManager: LUTManager? = null
 
     private val transformMatrix = FloatArray(16)
+    private val orientMatrix = FloatArray(16)
+    private val displayMatrix = FloatArray(16)
+    @Volatile private var previewRotation = 0
+    private var lastLogged = ""
     private val lock = Any()
     private val callbackExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -128,13 +134,37 @@ class CameraEffectSurface @JvmOverloads constructor(
             return
         }
 
-        // Work out how much of the camera frame fits (centre "cover" crop) in display space.
-        val rotated = abs(transformMatrix[0]) < abs(transformMatrix[4])
+        // Orientation. The platform's transform matrix normally already rotates the sensor buffer to the
+        // device's natural (portrait) orientation. If it does not (matrix has no 90 degree rotation but
+        // CameraX says the buffer needs one), add that rotation ourselves. Detecting this at runtime keeps
+        // the preview upright whichever way the device/driver reports it.
+        val matrixRotated = abs(transformMatrix[0]) < abs(transformMatrix[4])
+        val rot = ((previewRotation % 360) + 360) % 360
+        val extra = if (!matrixRotated && (rot == 90 || rot == 270)) rot else 0
+        val texMatrix: FloatArray
+        if (extra != 0) {
+            Matrix.setIdentityM(orientMatrix, 0)
+            Matrix.translateM(orientMatrix, 0, 0.5f, 0.5f, 0f)
+            Matrix.rotateM(orientMatrix, 0, extra.toFloat(), 0f, 0f, 1f)
+            Matrix.translateM(orientMatrix, 0, -0.5f, -0.5f, 0f)
+            Matrix.multiplyMM(displayMatrix, 0, transformMatrix, 0, orientMatrix, 0)
+            texMatrix = displayMatrix
+        } else {
+            texMatrix = transformMatrix
+        }
+        val displayRotated = matrixRotated || extra != 0
+        val logLine = "matrixRotated=$matrixRotated cameraXRotation=$rot extraRotation=$extra buffer=${bufferWidth}x$bufferHeight"
+        if (logLine != lastLogged) {
+            lastLogged = logLine
+            Log.i(TAG, logLine)
+        }
+
+        // How much of the camera frame fits (centre "cover" crop) in display space.
         val bw = bufferWidth
         val bh = bufferHeight
         val surfaceAspect = surfaceWidth.toFloat() / surfaceHeight.coerceAtLeast(1)
         val contentAspect = if (bw > 0 && bh > 0) {
-            if (rotated) bh.toFloat() / bw else bw.toFloat() / bh
+            if (displayRotated) bh.toFloat() / bw else bw.toFloat() / bh
         } else surfaceAspect
         val cx = if (contentAspect > surfaceAspect) surfaceAspect / contentAspect else 1f
         val cy = if (contentAspect < surfaceAspect) contentAspect / surfaceAspect else 1f
@@ -153,7 +183,7 @@ class CameraEffectSurface @JvmOverloads constructor(
             timeSeconds = elapsed,
             zoom = currentZoom,
             mirror = isMirror,
-            texMatrix = transformMatrix,
+            texMatrix = texMatrix,
             cropX = cx,
             cropY = cy,
             doubleExpTextureId = doubleExpTextureId,
@@ -186,6 +216,10 @@ class CameraEffectSurface @JvmOverloads constructor(
         bufferHeight = request.resolution.height
         st.setDefaultBufferSize(bufferWidth, bufferHeight)
         Log.i(TAG, "Providing preview surface ${bufferWidth}x${bufferHeight}")
+        request.setTransformationInfoListener(ContextCompat.getMainExecutor(context)) { info ->
+            previewRotation = info.rotationDegrees
+            requestRender()
+        }
         request.provideSurface(s, callbackExecutor) { result ->
             Log.d(TAG, "Surface result: ${result.resultCode}")
         }

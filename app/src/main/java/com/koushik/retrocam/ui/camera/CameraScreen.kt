@@ -108,6 +108,14 @@ fun CameraScreen(
     var cameraProblem by remember { mutableStateOf<String?>(null) }
     var burstActive by remember { mutableStateOf(false) }
 
+    // Release the camera, its GL surface and the video processor when leaving this screen
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraManager?.onDestroy()
+            effectSurface?.onDestroy()
+        }
+    }
+
     // Accelerometer for spirit level
     var deviceRoll by remember { mutableFloatStateOf(0f) }
     var devicePitch by remember { mutableFloatStateOf(0f) }
@@ -355,7 +363,7 @@ fun CameraScreen(
                             val es = effectSurface
                             val nx = 0.5f + (offset.x / size.width - 0.5f) * (es?.cropX ?: 1f)
                             val ny = 0.5f + (offset.y / size.height - 0.5f) * (es?.cropY ?: 1f)
-                            cameraManager?.tapToFocus(nx, ny, 1f, 1f)
+                            cameraManager?.tapToFocus(nx, ny)
                             coroutineScope.launch {
                                 delay(1800)
                                 focusPoint = null
