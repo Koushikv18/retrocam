@@ -220,9 +220,19 @@ class RetroFilterPipeline {
                 lutCol = lutCol * (1.0 - uFade) + uFade;
 
                 if (uLeak > 0.01) {
-                    float lk = smoothstep(0.45, 1.0, uv.x) * smoothstep(0.15, 0.85, uv.y) * uLeak;
-                    vec3 leakColor = vec3(1.0, 0.42, 0.15) * (0.7 + 0.3 * sin(uTime * 0.6));
-                    lutCol += leakColor * lk;
+                    // Organic film light leak with flare lobes and warm analog gradient
+                    float leakPhase = uTime * 0.15;
+                    float leakSide = fract(sin(floor(leakPhase) * 12.9898) * 43758.5453);
+                    vec2 flareOrigin = vec2(leakSide > 0.5 ? 1.05 : -0.05, fract(leakSide * 7.13));
+                    float flareDist = distance(uv, flareOrigin);
+                    float flare = smoothstep(0.9, 0.0, flareDist) * uLeak * 0.85;
+
+                    float edgeBleed = smoothstep(0.65, 1.0, leakSide > 0.5 ? uv.x : 1.0 - uv.x) *
+                                      smoothstep(0.05, 0.95, uv.y) * uLeak * 0.6;
+
+                    float totalLeak = clamp(flare + edgeBleed, 0.0, 1.0);
+                    vec3 leakTint = mix(vec3(1.0, 0.38, 0.12), vec3(1.0, 0.65, 0.22), sin(uTime * 0.8) * 0.5 + 0.5);
+                    lutCol += leakTint * totalLeak;
                 }
 
                 if (uDust > 0.01) {

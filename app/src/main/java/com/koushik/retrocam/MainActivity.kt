@@ -103,6 +103,8 @@ class MainActivity : ComponentActivity() {
                                             settingsRepo.setSaveFormat(newSettings.saveFormat)
                                             settingsRepo.toggleFrame(newSettings.frameEnabled)
                                             settingsRepo.toggleProCoach(newSettings.proCoach)
+                                            settingsRepo.setDateStampStyle(newSettings.dateStampStyle)
+                                            settingsRepo.updateFilmCounter(newSettings.filmRollCounter)
                                         }
                                     },
                                     onNavigateToGallery = { currentScreen = Screen.Gallery },
@@ -132,6 +134,8 @@ class MainActivity : ComponentActivity() {
                                             settingsRepo.setSaveFormat(newSettings.saveFormat)
                                             settingsRepo.toggleFrame(newSettings.frameEnabled)
                                             settingsRepo.toggleProCoach(newSettings.proCoach)
+                                            settingsRepo.setDateStampStyle(newSettings.dateStampStyle)
+                                            settingsRepo.updateFilmCounter(newSettings.filmRollCounter)
                                         }
                                     },
                                     onNavigateBack = { currentScreen = Screen.Camera }

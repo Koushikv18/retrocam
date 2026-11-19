@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.koushik.retrocam.data.model.CameraSettings
+import com.koushik.retrocam.data.model.DateStampStyle
 import com.koushik.retrocam.data.model.SaveFormat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -17,6 +18,7 @@ class SettingsRepository(private val context: Context) {
     private object Keys {
         val PRESET_ID = stringPreferencesKey("preset_id")
         val DATE_STAMP = booleanPreferencesKey("date_stamp")
+        val DATE_STAMP_STYLE = stringPreferencesKey("date_stamp_style")
         val GRID = booleanPreferencesKey("grid")
         val LEVEL = booleanPreferencesKey("level")
         val TIMER = intPreferencesKey("timer")
@@ -26,6 +28,7 @@ class SettingsRepository(private val context: Context) {
         val SAVE_FORMAT = stringPreferencesKey("save_format")
         val FRAME_ENABLED = booleanPreferencesKey("frame_enabled")
         val PRO_COACH = booleanPreferencesKey("pro_coach")
+        val FILM_COUNTER = intPreferencesKey("film_counter")
     }
 
     val settingsFlow: Flow<CameraSettings> = context.dataStore.data
@@ -39,6 +42,8 @@ class SettingsRepository(private val context: Context) {
         .map { prefs ->
             val presetId = prefs[Keys.PRESET_ID] ?: "cpm35"
             val dateStamp = prefs[Keys.DATE_STAMP] ?: true
+            val styleStr = prefs[Keys.DATE_STAMP_STYLE] ?: DateStampStyle.PRESET.name
+            val style = try { DateStampStyle.valueOf(styleStr) } catch (e: Exception) { DateStampStyle.PRESET }
             val grid = prefs[Keys.GRID] ?: false
             val level = prefs[Keys.LEVEL] ?: false
             val timer = prefs[Keys.TIMER] ?: 0
@@ -49,10 +54,12 @@ class SettingsRepository(private val context: Context) {
             val format = try { SaveFormat.valueOf(formatStr) } catch (e: Exception) { SaveFormat.JPEG_HIGH }
             val frameEnabled = prefs[Keys.FRAME_ENABLED] ?: true
             val proCoach = prefs[Keys.PRO_COACH] ?: true
+            val filmCounter = prefs[Keys.FILM_COUNTER] ?: 1
 
             CameraSettings(
                 selectedPresetId = presetId,
                 dateStampEnabled = dateStamp,
+                dateStampStyle = style,
                 gridEnabled = grid,
                 levelEnabled = level,
                 timerSeconds = timer,
@@ -61,7 +68,8 @@ class SettingsRepository(private val context: Context) {
                 hapticFeedback = haptics,
                 saveFormat = format,
                 frameEnabled = frameEnabled,
-                proCoach = proCoach
+                proCoach = proCoach,
+                filmRollCounter = filmCounter
             )
         }
 
@@ -71,6 +79,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun toggleDateStamp(enabled: Boolean) {
         context.dataStore.edit { it[Keys.DATE_STAMP] = enabled }
+    }
+
+    suspend fun setDateStampStyle(style: DateStampStyle) {
+        context.dataStore.edit { it[Keys.DATE_STAMP_STYLE] = style.name }
     }
 
     suspend fun toggleGrid(enabled: Boolean) {
@@ -107,5 +119,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun toggleProCoach(enabled: Boolean) {
         context.dataStore.edit { it[Keys.PRO_COACH] = enabled }
+    }
+
+    suspend fun updateFilmCounter(counter: Int) {
+        context.dataStore.edit { it[Keys.FILM_COUNTER] = counter }
     }
 }

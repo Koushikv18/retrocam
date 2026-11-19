@@ -54,9 +54,12 @@ Each look is defined via an extensible JSON preset with authentic color response
 - **Slide Mount**: Cardboard 35mm projection mount.
 - **Vintage Rounded**: CRT / retro rounded corners in black and cream.
 
-### 🕒 Vintage Date Stamps
-- Per-look typography: **Quartz Orange**, **LED 7-Segment**, **Dot Matrix**, and **VHS White**.
+### 🕒 Vintage Date Stamps & OSD
+- Per-look typography: **Quartz Orange**, **LED 7-Segment**, **Dot Matrix**, and **VHS White** with user color overrides.
 - Formats: `'YY  M  D`, `YYYY-MM-DD`, `M D 'YY HH:mm`.
+- **Analog Film Counter**: Mechanical frame counter `EXP [ 01 / 36 ]` in the viewfinder simulating authentic 36-exposure film rolls with one-tap reload.
+- **Rangefinder Viewfinder**: Authentic Leica-style frameline tick marks and real-time film stock OSD.
+- **Mechanical Sound & Haptics**: Crisp physical shutter clicks, video record chimes, and tactile dial vibrations.
 
 ### 🎥 Photo & Video
 - **60 FPS Live Preview**: Real-time shader preview with zero stutter when switching looks.

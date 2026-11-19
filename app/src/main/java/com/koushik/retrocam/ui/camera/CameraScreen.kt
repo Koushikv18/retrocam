@@ -54,6 +54,7 @@ import com.koushik.retrocam.ui.theme.*
 import com.koushik.retrocam.util.CoachTip
 import com.koushik.retrocam.util.DeviceProfile
 import com.koushik.retrocam.util.HapticsHelper
+import com.koushik.retrocam.util.SoundHelper
 import com.koushik.retrocam.util.ProCoach
 import com.koushik.retrocam.util.SceneStats
 import com.koushik.retrocam.util.MediaStoreHelper
@@ -75,6 +76,7 @@ fun CameraScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val haptics = remember { HapticsHelper(context) }
+    val soundHelper = remember { SoundHelper(context) }
     val stillProcessor = remember { StillImageProcessor() }
     val lutManager = remember { LUTManager() }
 
@@ -113,6 +115,7 @@ fun CameraScreen(
         onDispose {
             cameraManager?.onDestroy()
             effectSurface?.onDestroy()
+            soundHelper.release()
         }
     }
 
@@ -161,7 +164,13 @@ fun CameraScreen(
     DisposableEffect(lifecycleOwner, effectSurface) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> effectSurface?.onPause()
+                Lifecycle.Event.ON_PAUSE -> {
+                    if (isRecording) {
+                        cameraManager?.stopRecording()
+                        isRecording = false
+                    }
+                    effectSurface?.onPause()
+                }
                 Lifecycle.Event.ON_RESUME -> effectSurface?.onResume()
                 else -> {}
             }
@@ -229,6 +238,7 @@ fun CameraScreen(
             preset = selectedPreset,
             settings = settings,
             haptics = haptics,
+            soundHelper = soundHelper,
             context = context,
             doubleExpBitmap = doubleExpBitmap,
             cameraMode = cameraMode,
@@ -248,7 +258,11 @@ fun CameraScreen(
                 showFlashOverlay = false
                 doubleExpBitmap = null
                 effectSurface?.setDoubleExposureBitmap(null)
-                if (uri != null) latestPhotoUri = uri
+                if (uri != null) {
+                    latestPhotoUri = uri
+                    val nextCount = if (settings.filmRollCounter >= 36) 1 else settings.filmRollCounter + 1
+                    onUpdateSettings(settings.copy(filmRollCounter = nextCount))
+                }
             }
         )
     }
@@ -278,6 +292,7 @@ fun CameraScreen(
             if (!isRecording) {
                 isRecording = true
                 haptics.vibrateShutter(settings.hapticFeedback)
+                soundHelper.playStartVideo(settings.shutterSound)
                 cm.startRecording(selectedPreset.name) { event ->
                     if (event is VideoRecordEvent.Finalize) {
                         isRecording = false
@@ -287,6 +302,7 @@ fun CameraScreen(
                 cm.stopRecording()
                 isRecording = false
                 haptics.vibrateShutter(settings.hapticFeedback)
+                soundHelper.playStopVideo(settings.shutterSound)
             }
             return
         }
@@ -383,7 +399,13 @@ fun CameraScreen(
                 countdownSeconds = countdownSeconds,
                 doubleExposureCount = if (doubleExpBitmap != null) 1 else 0,
                 focusPoint = focusPoint,
-                frameEnabled = settings.frameEnabled
+                frameEnabled = settings.frameEnabled,
+                filmRollCounter = settings.filmRollCounter,
+                onResetFilmCounter = {
+                    haptics.vibrateDoubleExposure(settings.hapticFeedback)
+                    onUpdateSettings(settings.copy(filmRollCounter = 1))
+                    Toast.makeText(context, "New 36-exposure film roll loaded!", Toast.LENGTH_SHORT).show()
+                }
             )
         }
 
@@ -752,6 +774,7 @@ private suspend fun executePhotoCapture(
     preset: CameraPreset,
     settings: CameraSettings,
     haptics: HapticsHelper,
+    soundHelper: SoundHelper,
     context: Context,
     doubleExpBitmap: Bitmap?,
     cameraMode: CameraMode,
@@ -762,6 +785,7 @@ private suspend fun executePhotoCapture(
     val cm = cameraManager ?: return
     onStart()
     haptics.vibrateShutter(settings.hapticFeedback)
+    soundHelper.playShutter(settings.shutterSound)
 
     try {
         val (rawBitmap, rotation) = cm.capturePhoto()

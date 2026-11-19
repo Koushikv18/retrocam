@@ -27,13 +27,15 @@ object DateStampRenderer {
         canvas: Canvas,
         width: Int,
         height: Int,
-        config: DateStampConfig
+        config: DateStampConfig,
+        overrideColor: String? = null
     ) {
         if (!config.enabled) return
 
         val text = formatCurrentDate(config)
+        val colorToUse = overrideColor ?: config.color
         val parsedColor = try {
-            Color.parseColor(config.color)
+            Color.parseColor(colorToUse)
         } catch (e: Exception) {
             Color.parseColor("#FF9A2E")
         }
@@ -69,4 +71,3 @@ object DateStampRenderer {
         canvas.drawText(text, x, y, paint)
     }
 }
-

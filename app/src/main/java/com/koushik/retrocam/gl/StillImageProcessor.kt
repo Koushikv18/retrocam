@@ -36,7 +36,7 @@ class StillImageProcessor {
         val targetAspect = if (oriented.width > oriented.height && portrait < 1f) 1f / portrait else portrait
         val cropped = cropToAspectRatio(oriented, targetAspect)
 
-        // Limit size to max 4096 for GPU texture
+        // Limit size to max 4096 for GPU texture to prevent GL out-of-spec or memory crashes
         val maxDim = max(cropped.width, cropped.height)
         val scaled = if (maxDim > 4096) {
             val scale = 4096f / maxDim
@@ -48,7 +48,7 @@ class StillImageProcessor {
         val width = scaled.width
         val height = scaled.height
 
-        // 2. Offscreen EGL rendering with GLES 3.0 with guaranteed resource cleanup
+        // 2. Offscreen EGL rendering with GLES 3.0 with guaranteed resource cleanup and OOM shield
         var eglCore: EglCore? = null
         var eglSurface: android.opengl.EGLSurface? = null
         var pipeline: RetroFilterPipeline? = null
@@ -71,6 +71,9 @@ class StillImageProcessor {
                 uploadBitmapToTexture(scaledExp)
             }
 
+            // Generate a unique per-shot seed so every photograph has an organic, authentic light leak and grain signature
+            val randomSeed = (System.currentTimeMillis() % 1000000).toFloat() / 1000f
+
             pipe.render(
                 mainTextureId = mainTexId,
                 isOesTexture = false,
@@ -78,7 +81,7 @@ class StillImageProcessor {
                 preset = preset,
                 width = width,
                 height = height,
-                timeSeconds = (System.currentTimeMillis() % 100000).toFloat() / 1000f,
+                timeSeconds = randomSeed,
                 zoom = 1.0f,
                 mirror = mirror,
                 texMatrix = null,
@@ -94,9 +97,13 @@ class StillImageProcessor {
             outputBitmap.copyPixelsFromBuffer(pixelBuffer)
 
             val flipMatrix = Matrix().apply { postScale(1.0f, -1.0f) }
-            Bitmap.createBitmap(outputBitmap, 0, 0, width, height, flipMatrix, true)
-        } catch (e: Exception) {
-            android.util.Log.e("StillImageProcessor", "GL offscreen processing failed, falling back to source bitmap", e)
+            val finalFlipped = Bitmap.createBitmap(outputBitmap, 0, 0, width, height, flipMatrix, true)
+            if (finalFlipped != outputBitmap) {
+                outputBitmap.recycle()
+            }
+            finalFlipped
+        } catch (t: Throwable) {
+            android.util.Log.e("StillImageProcessor", "GL offscreen processing failed, falling back safely to source bitmap", t)
             scaled
         } finally {
             try {
@@ -116,18 +123,36 @@ class StillImageProcessor {
         val mutableGlBitmap = if (processedBitmap.isMutable) {
             processedBitmap
         } else {
-            processedBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            try {
+                processedBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            } catch (oom: OutOfMemoryError) {
+                processedBitmap
+            }
         }
 
         // 3. Draw date stamp if enabled
-        if (settings.dateStampEnabled && preset.dateStamp.enabled) {
-            val canvas = Canvas(mutableGlBitmap)
-            DateStampRenderer.drawDateStamp(canvas, width, height, preset.dateStamp)
+        if (settings.dateStampEnabled && preset.dateStamp.enabled && mutableGlBitmap.isMutable) {
+            try {
+                val canvas = Canvas(mutableGlBitmap)
+                DateStampRenderer.drawDateStamp(
+                    canvas = canvas,
+                    width = width,
+                    height = height,
+                    config = preset.dateStamp,
+                    overrideColor = settings.dateStampStyle.hexColor
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("StillImageProcessor", "Date stamp rendering skipped: ${e.message}")
+            }
         }
 
         // 4. Apply frames and borders if enabled
         val framedBitmap = if (settings.frameEnabled && preset.frame != "none") {
-            FrameCompositor.applyFrame(mutableGlBitmap, preset.frame)
+            try {
+                FrameCompositor.applyFrame(mutableGlBitmap, preset.frame)
+            } catch (e: Exception) {
+                mutableGlBitmap
+            }
         } else {
             mutableGlBitmap
         }
@@ -174,4 +199,3 @@ class StillImageProcessor {
         return texId
     }
 }
-

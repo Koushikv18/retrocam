@@ -31,6 +31,7 @@ import com.koushik.retrocam.ui.camera.components.LookCarousel
 import com.koushik.retrocam.ui.theme.*
 import com.koushik.retrocam.util.MediaStoreHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -80,9 +81,10 @@ fun EditScreen(
         }
     }
 
-    // Update preview when parameters change
+    // Update preview when parameters change (debounced for buttery-smooth slider scrubbing)
     LaunchedEffect(originalBitmap, selectedPreset, intensity, warmth, grain, fade, dateStampEnabled, frameEnabled) {
         val orig = originalBitmap ?: return@LaunchedEffect
+        delay(60L)
         withContext(Dispatchers.Default) {
             val adjustedPreset = selectedPreset.copy(
                 temperature = selectedPreset.temperature + warmth,

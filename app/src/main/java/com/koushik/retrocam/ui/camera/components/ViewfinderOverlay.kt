@@ -7,12 +7,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -37,10 +39,12 @@ fun ViewfinderOverlay(
     doubleExposureCount: Int,
     focusPoint: Offset?,
     frameEnabled: Boolean,
+    filmRollCounter: Int = 1,
+    onResetFilmCounter: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        // 1. Aspect Ratio Mask and Frames
+        // 1. Aspect Ratio Mask, Framelines, and Frames
         Canvas(modifier = Modifier.fillMaxSize()) {
             val canvasW = size.width
             val canvasH = size.height
@@ -92,6 +96,25 @@ fun ViewfinderOverlay(
                 drawRect(stripColor, Offset(left, top), Size(cropW, border))
                 drawRect(stripColor, Offset(left, bottom - border), Size(cropW, border))
             }
+
+            // Rangefinder Framelines (Corner ticks inside active framing)
+            val frameLineLen = 14.dp.toPx()
+            val frameLineStroke = 1.5.dp.toPx()
+            val frameLineColor = Color(0x77FFFFFF)
+            val cornerInset = 10.dp.toPx()
+
+            // Top Left
+            drawLine(frameLineColor, Offset(left + cornerInset, top + cornerInset), Offset(left + cornerInset + frameLineLen, top + cornerInset), frameLineStroke)
+            drawLine(frameLineColor, Offset(left + cornerInset, top + cornerInset), Offset(left + cornerInset, top + cornerInset + frameLineLen), frameLineStroke)
+            // Top Right
+            drawLine(frameLineColor, Offset(right - cornerInset, top + cornerInset), Offset(right - cornerInset - frameLineLen, top + cornerInset), frameLineStroke)
+            drawLine(frameLineColor, Offset(right - cornerInset, top + cornerInset), Offset(right - cornerInset, top + cornerInset + frameLineLen), frameLineStroke)
+            // Bottom Left
+            drawLine(frameLineColor, Offset(left + cornerInset, bottom - cornerInset), Offset(left + cornerInset + frameLineLen, bottom - cornerInset), frameLineStroke)
+            drawLine(frameLineColor, Offset(left + cornerInset, bottom - cornerInset), Offset(left + cornerInset, bottom - cornerInset - frameLineLen), frameLineStroke)
+            // Bottom Right
+            drawLine(frameLineColor, Offset(right - cornerInset, bottom - cornerInset), Offset(right - cornerInset - frameLineLen, bottom - cornerInset), frameLineStroke)
+            drawLine(frameLineColor, Offset(right - cornerInset, bottom - cornerInset), Offset(right - cornerInset, bottom - cornerInset - frameLineLen), frameLineStroke)
 
             // 2. Rule-of-Thirds Grid
             if (gridEnabled) {
@@ -173,7 +196,7 @@ fun ViewfinderOverlay(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
+                    .padding(top = 48.dp)
                     .background(RetroCyan.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
@@ -186,6 +209,44 @@ fun ViewfinderOverlay(
                 )
             }
         }
+
+        // 7. Vintage Film OSD Header: [ EXP 14/36 ] • PRESET NAME • 36 EXP
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 14.dp, top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Mechanical Film Counter Pill
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xD9141414))
+                    .border(1.dp, Color(0x66FF9A2E), RoundedCornerShape(6.dp))
+                    .clickable { onResetFilmCounter() }
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = "EXP [ %02d / 36 ]".format(filmRollCounter.coerceIn(1, 36)),
+                    color = RetroAmberGlow,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+            }
+
+            // Vintage Film Stock Tag
+            Text(
+                text = "${preset.name.uppercase()} • ISO ${if (preset.grain > 0.3f) 800 else 400}",
+                color = Color(0xAAFFFFFF),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.5.sp
+            )
+        }
     }
 }
-
