@@ -48,68 +48,88 @@ class StillImageProcessor {
         val width = scaled.width
         val height = scaled.height
 
-        // 2. Offscreen EGL rendering with GLES 3.0
-        val eglCore = EglCore()
-        val eglSurface = eglCore.createOffscreenSurface(width, height)
-        eglCore.makeCurrent(eglSurface)
+        // 2. Offscreen EGL rendering with GLES 3.0 with guaranteed resource cleanup
+        var eglCore: EglCore? = null
+        var eglSurface: android.opengl.EGLSurface? = null
+        var pipeline: RetroFilterPipeline? = null
+        var mainTexId = 0
+        var doubleExpTexId: Int? = null
 
-        val pipeline = RetroFilterPipeline()
+        val processedBitmap = try {
+            val core = EglCore()
+            eglCore = core
+            val surface = core.createOffscreenSurface(width, height)
+            eglSurface = surface
+            core.makeCurrent(surface)
 
-        // Upload main texture
-        val mainTexId = uploadBitmapToTexture(scaled)
+            val pipe = RetroFilterPipeline()
+            pipeline = pipe
 
-        // Upload double exposure texture if present
-        val doubleExpTexId = doubleExpBitmap?.let {
-            val scaledExp = Bitmap.createScaledBitmap(cropToAspectRatio(it, targetAspect), width, height, true)
-            uploadBitmapToTexture(scaledExp)
+            mainTexId = uploadBitmapToTexture(scaled)
+            doubleExpTexId = doubleExpBitmap?.let {
+                val scaledExp = Bitmap.createScaledBitmap(cropToAspectRatio(it, targetAspect), width, height, true)
+                uploadBitmapToTexture(scaledExp)
+            }
+
+            pipe.render(
+                mainTextureId = mainTexId,
+                isOesTexture = false,
+                lutManager = lutManager,
+                preset = preset,
+                width = width,
+                height = height,
+                timeSeconds = (System.currentTimeMillis() % 100000).toFloat() / 1000f,
+                zoom = 1.0f,
+                mirror = mirror,
+                texMatrix = null,
+                doubleExpTextureId = doubleExpTexId,
+                doubleExpIntensity = settings.doubleExposureIntensity
+            )
+
+            val pixelBuffer = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
+            GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixelBuffer)
+
+            val outputBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            pixelBuffer.position(0)
+            outputBitmap.copyPixelsFromBuffer(pixelBuffer)
+
+            val flipMatrix = Matrix().apply { postScale(1.0f, -1.0f) }
+            Bitmap.createBitmap(outputBitmap, 0, 0, width, height, flipMatrix, true)
+        } catch (e: Exception) {
+            android.util.Log.e("StillImageProcessor", "GL offscreen processing failed, falling back to source bitmap", e)
+            scaled
+        } finally {
+            try {
+                val texList = mutableListOf<Int>()
+                if (mainTexId != 0) texList.add(mainTexId)
+                doubleExpTexId?.let { if (it != 0) texList.add(it) }
+                if (texList.isNotEmpty()) {
+                    GLES30.glDeleteTextures(texList.size, texList.toIntArray(), 0)
+                }
+            } catch (e: Exception) { }
+            try { pipeline?.release() } catch (e: Exception) { }
+            try { eglSurface?.let { eglCore?.releaseSurface(it) } } catch (e: Exception) { }
+            try { eglCore?.release() } catch (e: Exception) { }
         }
 
-        // Render through GL pipeline
-        pipeline.render(
-            mainTextureId = mainTexId,
-            isOesTexture = false,
-            lutManager = lutManager,
-            preset = preset,
-            width = width,
-            height = height,
-            timeSeconds = (System.currentTimeMillis() % 100000).toFloat() / 1000f,
-            zoom = 1.0f,
-            mirror = mirror,
-            texMatrix = null,
-            doubleExpTextureId = doubleExpTexId,
-            doubleExpIntensity = settings.doubleExposureIntensity
-        )
-
-        // Read pixels back
-        val pixelBuffer = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
-        GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixelBuffer)
-
-        // Clean up GL resources
-        val texArray = if (doubleExpTexId != null) intArrayOf(mainTexId, doubleExpTexId) else intArrayOf(mainTexId)
-        GLES30.glDeleteTextures(texArray.size, texArray, 0)
-        pipeline.release()
-        eglCore.releaseSurface(eglSurface)
-        eglCore.release()
-
-        // Invert Y axis from OpenGL coordinates
-        val outputBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        pixelBuffer.position(0)
-        outputBitmap.copyPixelsFromBuffer(pixelBuffer)
-
-        val flipMatrix = Matrix().apply { postScale(1.0f, -1.0f) }
-        val correctedGlBitmap = Bitmap.createBitmap(outputBitmap, 0, 0, width, height, flipMatrix, true)
+        // Ensure bitmap is mutable before drawing date stamp on Canvas
+        val mutableGlBitmap = if (processedBitmap.isMutable) {
+            processedBitmap
+        } else {
+            processedBitmap.copy(Bitmap.Config.ARGB_8888, true)
+        }
 
         // 3. Draw date stamp if enabled
         if (settings.dateStampEnabled && preset.dateStamp.enabled) {
-            val canvas = Canvas(correctedGlBitmap)
+            val canvas = Canvas(mutableGlBitmap)
             DateStampRenderer.drawDateStamp(canvas, width, height, preset.dateStamp)
         }
 
         // 4. Apply frames and borders if enabled
         val framedBitmap = if (settings.frameEnabled && preset.frame != "none") {
-            FrameCompositor.applyFrame(correctedGlBitmap, preset.frame)
+            FrameCompositor.applyFrame(mutableGlBitmap, preset.frame)
         } else {
-            correctedGlBitmap
+            mutableGlBitmap
         }
 
         framedBitmap

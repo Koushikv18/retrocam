@@ -238,6 +238,7 @@ fun CameraScreen(
             },
             onDoubleExpCaptured = { bmp ->
                 doubleExpBitmap = bmp
+                effectSurface?.setDoubleExposureBitmap(bmp)
                 haptics.vibrateDoubleExposure(settings.hapticFeedback)
                 isShooting = false
                 showFlashOverlay = false
@@ -246,6 +247,7 @@ fun CameraScreen(
                 isShooting = false
                 showFlashOverlay = false
                 doubleExpBitmap = null
+                effectSurface?.setDoubleExposureBitmap(null)
                 if (uri != null) latestPhotoUri = uri
             }
         )
@@ -646,6 +648,8 @@ fun CameraScreen(
                         modifier = Modifier
                             .clickable {
                                 cameraMode = mode
+                                doubleExpBitmap = null
+                                effectSurface?.setDoubleExposureBitmap(null)
                                 haptics.vibrateDialTick(settings.hapticFeedback)
                             }
                             .padding(horizontal = 6.dp, vertical = 4.dp)

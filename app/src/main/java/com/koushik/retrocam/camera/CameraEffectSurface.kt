@@ -236,6 +236,28 @@ class CameraEffectSurface @JvmOverloads constructor(
         return textures[0]
     }
 
+    fun setDoubleExposureBitmap(bitmap: android.graphics.Bitmap?) {
+        queueEvent {
+            doubleExpTextureId?.let { id ->
+                GLES30.glDeleteTextures(1, intArrayOf(id), 0)
+                doubleExpTextureId = null
+            }
+            if (bitmap != null) {
+                val textures = IntArray(1)
+                GLES30.glGenTextures(1, textures, 0)
+                val texId = textures[0]
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, texId)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
+                android.opengl.GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, bitmap, 0)
+                doubleExpTextureId = texId
+            }
+            requestRender()
+        }
+    }
+
     fun onDestroy() {
         queueEvent {
             pipeline?.release()
